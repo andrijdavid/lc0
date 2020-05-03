@@ -25,18 +25,18 @@ namespace lczero {
 
 template <bool use_eigen>
 class FullyConnectedLayer {
- public:
-  FullyConnectedLayer() = delete;
+public:
+    FullyConnectedLayer() = delete;
 
-  // Forward inference, batched, from input_size to output_size
-  static void Forward1D(const size_t batch_size, const size_t input_size,
-                        const size_t output_size, const float* input,
-                        const float* weights, const float* biases,
-                        bool apply_relu, float* output);
+    // Forward inference, batched, from input_size to output_size
+    static void Forward1D(const size_t batch_size, const size_t input_size,
+                          const size_t output_size, const float* input,
+                          const float* weights, const float* biases,
+                          bool apply_relu, float* output);
 
-  // Forward inference, no batched, from input_size to scalar
-  static float Forward0D(const size_t input_size, const float* input,
-                         const float* weights);
+    // Forward inference, no batched, from input_size to scalar
+    static float Forward0D(const size_t input_size, const float* input,
+                           const float* weights);
 
 };
 

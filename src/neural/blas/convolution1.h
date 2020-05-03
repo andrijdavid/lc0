@@ -26,17 +26,17 @@ namespace lczero {
 // Convolution 1x1
 template <bool use_eigen>
 class Convolution1 {
- public:
-  Convolution1() = delete;
+public:
+    Convolution1() = delete;
 
-  // Batched forward inference.
-  static void Forward(const size_t batch_size, const size_t input_channels,
-                      const size_t output_channels, const float* input,
-                      const float* weights, float* output);
+    // Batched forward inference.
+    static void Forward(const size_t batch_size, const size_t input_channels,
+                        const size_t output_channels, const float* input,
+                        const float* weights, float* output);
 
- private:
-  static constexpr auto kWidth = 8;
-  static constexpr auto kHeight = 8;
-  static constexpr auto kSquares = kWidth * kHeight;
+private:
+    static constexpr auto kWidth = 8;
+    static constexpr auto kHeight = 8;
+    static constexpr auto kSquares = kWidth * kHeight;
 };
 }  // namespace lczero

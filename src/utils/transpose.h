@@ -38,26 +38,26 @@ namespace lczero {
 template <class T>
 void TransposeTensor(const std::vector<int>& dims, std::vector<int> order,
                      const std::vector<T> from, T* to) {
-  if (order.empty()) {
-    for (size_t i = 0; i < dims.size(); ++i)
-      order.push_back(dims.size() - i - 1);
-  }
-  std::vector<int> cur_idx(dims.size());
-  for (size_t _ = 0; _ < from.size(); ++_) {
-    size_t from_idx = 0;
-    for (int i : order) {
-      from_idx *= dims[i];
-      from_idx += cur_idx[i];
+    if (order.empty()) {
+        for (size_t i = 0; i < dims.size(); ++i)
+            order.push_back(dims.size() - i - 1);
     }
-    *to++ = from[from_idx];
-    for (int i = static_cast<int>(dims.size()) - 1; i >= 0; --i) {
-      if (++cur_idx[i] == dims[i]) {
-        cur_idx[i] = 0;
-      } else {
-        break;
-      }
+    std::vector<int> cur_idx(dims.size());
+    for (size_t _ = 0; _ < from.size(); ++_) {
+        size_t from_idx = 0;
+        for (int i : order) {
+            from_idx *= dims[i];
+            from_idx += cur_idx[i];
+        }
+        *to++ = from[from_idx];
+        for (int i = static_cast<int>(dims.size()) - 1; i >= 0; --i) {
+            if (++cur_idx[i] == dims[i]) {
+                cur_idx[i] = 0;
+            } else {
+                break;
+            }
+        }
     }
-  }
 }
 
 }  // namespace lczero

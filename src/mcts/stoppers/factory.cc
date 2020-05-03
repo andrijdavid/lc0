@@ -44,43 +44,43 @@ const OptionId kMoveOverheadId{
     "total available time (to compensate for slow connection, interprocess "
     "communication, etc)."};
 const OptionId kTimeManagerId{"time-manager", "TimeManager",
-                              "Name and config of atime manager."};
+    "Name and config of atime manager."};
 
 }  // namespace
 
 void PopulateTimeManagementOptions(RunType for_what, OptionsParser* options) {
-  PopulateCommonStopperOptions(for_what, options);
-  if (for_what == RunType::kUci) {
-    options->Add<IntOption>(kMoveOverheadId, 0, 100000000) = 200;
-    options->Add<StringOption>(kTimeManagerId) = "legacy";
-  }
+    PopulateCommonStopperOptions(for_what, options);
+    if (for_what == RunType::kUci) {
+        options->Add<IntOption>(kMoveOverheadId, 0, 100000000) = 200;
+        options->Add<StringOption>(kTimeManagerId) = "legacy";
+    }
 }
 
 std::unique_ptr<TimeManager> MakeTimeManager(const OptionsDict& options) {
-  const int64_t move_overhead = options.Get<int>(kMoveOverheadId);
+    const int64_t move_overhead = options.Get<int>(kMoveOverheadId);
 
-  OptionsDict tm_options;
-  tm_options.AddSubdictFromString(options.Get<std::string>(kTimeManagerId));
-  const auto managers = tm_options.ListSubdicts();
+    OptionsDict tm_options;
+    tm_options.AddSubdictFromString(options.Get<std::string>(kTimeManagerId));
+    const auto managers = tm_options.ListSubdicts();
 
-  std::unique_ptr<TimeManager> time_manager;
-  if (managers.size() != 1) {
-    throw Exception("Exactly one time manager should be specified, " +
-                    std::to_string(managers.size()) + " specified instead.");
-  }
-  if (managers[0] == "legacy") {
-    time_manager =
-        MakeLegacyTimeManager(move_overhead, tm_options.GetSubdict("legacy"));
-  } else if (managers[0] == "smooth-experimental") {
-    time_manager = MakeSmoothTimeManager(
-        move_overhead, tm_options.GetSubdict("smooth-experimental"));
-  }
-  if (!time_manager) {
-    throw Exception("Unknown time manager: [" + managers[0] + "]");
-  }
-  tm_options.CheckAllOptionsRead("");
+    std::unique_ptr<TimeManager> time_manager;
+    if (managers.size() != 1) {
+        throw Exception("Exactly one time manager should be specified, " +
+                        std::to_string(managers.size()) + " specified instead.");
+    }
+    if (managers[0] == "legacy") {
+        time_manager =
+            MakeLegacyTimeManager(move_overhead, tm_options.GetSubdict("legacy"));
+    } else if (managers[0] == "smooth-experimental") {
+        time_manager = MakeSmoothTimeManager(
+                           move_overhead, tm_options.GetSubdict("smooth-experimental"));
+    }
+    if (!time_manager) {
+        throw Exception("Unknown time manager: [" + managers[0] + "]");
+    }
+    tm_options.CheckAllOptionsRead("");
 
-  return MakeCommonTimeManager(std::move(time_manager), options, move_overhead);
+    return MakeCommonTimeManager(std::move(time_manager), options, move_overhead);
 }
 
 }  // namespace lczero

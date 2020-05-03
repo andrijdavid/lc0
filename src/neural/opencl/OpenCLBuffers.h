@@ -42,66 +42,66 @@
 class OpenCL_Network;
 
 class OpenCLBuffers {
-  friend class OpenCL;
-  friend class OpenCL_Network;
+    friend class OpenCL;
+    friend class OpenCL_Network;
 
- public:
-  OpenCLBuffers(const OpenCL_Network& opencl_net);
+public:
+    OpenCLBuffers(const OpenCL_Network& opencl_net);
 
-  void forward(const std::vector<net_t>& input, std::vector<net_t>& output_pol,
-               std::vector<net_t>& output_val, std::vector<net_t>& output_mov,
-               const int batch_size);
+    void forward(const std::vector<net_t>& input, std::vector<net_t>& output_pol,
+                 std::vector<net_t>& output_val, std::vector<net_t>& output_mov,
+                 const int batch_size);
 
- private:
-  using weight_slice_t = std::vector<cl::Buffer>::const_iterator;
+private:
+    using weight_slice_t = std::vector<cl::Buffer>::const_iterator;
 
-  void convolve3(int channels, int outputs, cl::Buffer& bufferIn,
-                 cl::Buffer& bufferOut, cl::Buffer& bufferV,
-                 cl::Buffer& bufferM, weight_slice_t weights,
-                 cl::Buffer* bufferResidual, weight_slice_t biases,
-                 bool skip_in_transform, bool fuse_in_transform,
-                 bool store_inout, bool relu, int batch_size);
+    void convolve3(int channels, int outputs, cl::Buffer& bufferIn,
+                   cl::Buffer& bufferOut, cl::Buffer& bufferV,
+                   cl::Buffer& bufferM, weight_slice_t weights,
+                   cl::Buffer* bufferResidual, weight_slice_t biases,
+                   bool skip_in_transform, bool fuse_in_transform,
+                   bool store_inout, bool relu, int batch_size);
 
-  void convolve1(int channels, int outputs, cl::Buffer& bufferInput,
-                 cl::Buffer& bufferOutput, cl::Buffer& bufferMerge,
-                 weight_slice_t weights, weight_slice_t biases, int batch_size);
+    void convolve1(int channels, int outputs, cl::Buffer& bufferInput,
+                   cl::Buffer& bufferOutput, cl::Buffer& bufferMerge,
+                   weight_slice_t weights, weight_slice_t biases, int batch_size);
 
-  void innerproduct(cl::Buffer& input, weight_slice_t weights,
-                    weight_slice_t biases, cl::Buffer& output, const int inputs,
-                    const int outputs, const int relu, int batch_size);
+    void innerproduct(cl::Buffer& input, weight_slice_t weights,
+                      weight_slice_t biases, cl::Buffer& output, const int inputs,
+                      const int outputs, const int relu, int batch_size);
 
-  void squeeze_excitation(int channels, int fc_outputs, cl::Buffer& bufferIn,
-                          cl::Buffer& bufferTemp1, cl::Buffer& bufferTemp2,
-                          weight_slice_t weights, cl::Buffer& bufferResidual,
-                          int batch_size);
+    void squeeze_excitation(int channels, int fc_outputs, cl::Buffer& bufferIn,
+                            cl::Buffer& bufferTemp1, cl::Buffer& bufferTemp2,
+                            weight_slice_t weights, cl::Buffer& bufferResidual,
+                            int batch_size);
 
-  void policymap(int N, const cl::Buffer& input, cl::Buffer& output,
-                 const cl::Buffer& indices, int inputSize, int usedSize,
-                 int outputSize);
+    void policymap(int N, const cl::Buffer& input, cl::Buffer& output,
+                   const cl::Buffer& indices, int inputSize, int usedSize,
+                   int outputSize);
 
-  const OpenCL_Network& m_opencl_net;
-  const OpenCL& m_opencl;
+    const OpenCL_Network& m_opencl_net;
+    const OpenCL& m_opencl;
 
-  cl::CommandQueue m_commandqueue;
-  cl::Kernel m_convolve1_kernel;
-  cl::Kernel m_merge_kernel;
-  cl::Kernel m_in_transform_kernel;
-  cl::Kernel m_sgemm_kernel;
-  cl::Kernel m_sgemv_kernel;
-  cl::Kernel m_out_transform_bn_kernel;
-  cl::Kernel m_out_transform_bn_in_kernel;
-  cl::Kernel m_global_avg_pooling_kernel;
-  cl::Kernel m_apply_se_kernel;
-  cl::Kernel m_policymap_kernel;
-  cl::Buffer m_inBuffer;
-  cl::Buffer m_inBuffer2;
-  cl::Buffer m_VBuffer;
-  cl::Buffer m_MBuffer;
-  cl::Buffer m_pool_buffer;
-  cl::Buffer m_pinnedOutBuffer_pol;
-  cl::Buffer m_pinnedOutBuffer_val;
-  cl::Buffer m_pinnedOutBuffer_mov;
-  size_t m_finalSize_pol;
-  size_t m_finalSize_val;
-  size_t m_finalSize_mov;
+    cl::CommandQueue m_commandqueue;
+    cl::Kernel m_convolve1_kernel;
+    cl::Kernel m_merge_kernel;
+    cl::Kernel m_in_transform_kernel;
+    cl::Kernel m_sgemm_kernel;
+    cl::Kernel m_sgemv_kernel;
+    cl::Kernel m_out_transform_bn_kernel;
+    cl::Kernel m_out_transform_bn_in_kernel;
+    cl::Kernel m_global_avg_pooling_kernel;
+    cl::Kernel m_apply_se_kernel;
+    cl::Kernel m_policymap_kernel;
+    cl::Buffer m_inBuffer;
+    cl::Buffer m_inBuffer2;
+    cl::Buffer m_VBuffer;
+    cl::Buffer m_MBuffer;
+    cl::Buffer m_pool_buffer;
+    cl::Buffer m_pinnedOutBuffer_pol;
+    cl::Buffer m_pinnedOutBuffer_val;
+    cl::Buffer m_pinnedOutBuffer_mov;
+    size_t m_finalSize_pol;
+    size_t m_finalSize_val;
+    size_t m_finalSize_mov;
 };

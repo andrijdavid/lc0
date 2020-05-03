@@ -37,58 +37,58 @@ namespace {
 const int kDefaultThreads = 1;
 
 const OptionId kThreadsOptionId{"threads", "Threads",
-                                "Number of (CPU) worker threads to use.", 't'};
+    "Number of (CPU) worker threads to use.", 't'};
 const OptionId kBatchesId{"batches", "",
-                          "Number of batches to run as a benchmark."};
+    "Number of batches to run as a benchmark."};
 const OptionId kMaxBatchSizeId{"max-batch-size", "",
-                               "Maximum batch size to benchmark."};
+    "Maximum batch size to benchmark."};
 const OptionId kFenId{"fen", "", "Benchmark initial position FEN."};
 }  // namespace
 
 void BackendBenchmark::Run() {
-  OptionsParser options;
-  NetworkFactory::PopulateOptions(&options);
-  options.Add<IntOption>(kThreadsOptionId, 1, 128) = kDefaultThreads;
+    OptionsParser options;
+    NetworkFactory::PopulateOptions(&options);
+    options.Add<IntOption>(kThreadsOptionId, 1, 128) = kDefaultThreads;
 
-  options.Add<IntOption>(kBatchesId, 1, 999999999) = 100;
-  options.Add<IntOption>(kMaxBatchSizeId, 1, 1024) = 256;
-  options.Add<StringOption>(kFenId) = ChessBoard::kStartposFen;
+    options.Add<IntOption>(kBatchesId, 1, 999999999) = 100;
+    options.Add<IntOption>(kMaxBatchSizeId, 1, 1024) = 256;
+    options.Add<StringOption>(kFenId) = ChessBoard::kStartposFen;
 
-  if (!options.ProcessAllFlags()) return;
+    if (!options.ProcessAllFlags()) return;
 
-  try {
-    auto option_dict = options.GetOptionsDict();
+    try {
+        auto option_dict = options.GetOptionsDict();
 
-    auto network = NetworkFactory::LoadNetwork(option_dict);
+        auto network = NetworkFactory::LoadNetwork(option_dict);
 
-    NodeTree tree;
-    tree.ResetToPosition(option_dict.Get<std::string>(kFenId), {});
-    const int batches = option_dict.Get<int>(kBatchesId);
+        NodeTree tree;
+        tree.ResetToPosition(option_dict.Get<std::string>(kFenId), {});
+        const int batches = option_dict.Get<int>(kBatchesId);
 
-    for (int i = 1; i <= option_dict.Get<int>(kMaxBatchSizeId); i++) {
-      const auto start = std::chrono::steady_clock::now();
-      // TODO: support threads not equal to 1 to be able to more sensibly test
-      // multiplexing backend.
-      for (int j = 0; j < batches; j++) {
-        // Put i copies of tree root node into computation and compute.
-        auto computation = network->NewComputation();
-        for (int k = 0; k < i; k++) {
-          computation->AddInput(EncodePositionForNN(
-              network->GetCapabilities().input_format,
-              tree.GetPositionHistory(), 8, FillEmptyHistory::ALWAYS, nullptr));
+        for (int i = 1; i <= option_dict.Get<int>(kMaxBatchSizeId); i++) {
+            const auto start = std::chrono::steady_clock::now();
+            // TODO: support threads not equal to 1 to be able to more sensibly test
+            // multiplexing backend.
+            for (int j = 0; j < batches; j++) {
+                // Put i copies of tree root node into computation and compute.
+                auto computation = network->NewComputation();
+                for (int k = 0; k < i; k++) {
+                    computation->AddInput(EncodePositionForNN(
+                                              network->GetCapabilities().input_format,
+                                              tree.GetPositionHistory(), 8, FillEmptyHistory::ALWAYS, nullptr));
+                }
+                computation->ComputeBlocking();
+            }
+
+            const auto end = std::chrono::steady_clock::now();
+            std::chrono::duration<double> time = end - start;
+            std::cout << "Benchmark batch size " << i
+                      << " with inference average time "
+                      << time.count() / batches * 1000 << "ms - throughput "
+                      << i * batches / time.count() << " nps." << std::endl;
         }
-        computation->ComputeBlocking();
-      }
-
-      const auto end = std::chrono::steady_clock::now();
-      std::chrono::duration<double> time = end - start;
-      std::cout << "Benchmark batch size " << i
-                << " with inference average time "
-                << time.count() / batches * 1000 << "ms - throughput "
-                << i * batches / time.count() << " nps." << std::endl;
+    } catch (Exception& ex) {
+        std::cerr << ex.what() << std::endl;
     }
-  } catch (Exception& ex) {
-    std::cerr << ex.what() << std::endl;
-  }
 }
 }  // namespace lczero

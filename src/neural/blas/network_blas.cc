@@ -44,104 +44,108 @@ namespace {
 
 template <bool use_eigen>
 class BlasComputation : public NetworkComputation {
- public:
-  BlasComputation(const LegacyWeights& weights, const size_t max_batch_size,
-                  const bool wdl, const bool moves_left, const bool conv_policy,
-                  const int blas_cores);
+public:
+    BlasComputation(const LegacyWeights& weights, const size_t max_batch_size,
+                    const bool wdl, const bool moves_left, const bool conv_policy,
+                    const int blas_cores);
 
-  virtual ~BlasComputation() {}
+    virtual ~BlasComputation() {}
 
-  // Adds a sample to the batch.
-  void AddInput(InputPlanes&& input) override { planes_.emplace_back(input); }
-
-  // Do the computation.
-  void ComputeBlocking() override;
-
-  // Returns how many times AddInput() was called.
-  int GetBatchSize() const override { return static_cast<int>(planes_.size()); }
-
-  // Returns Q value of @sample.
-  float GetQVal(int sample) const override {
-    if (wdl_) {
-      auto w = q_values_[3 * sample + 0];
-      auto l = q_values_[3 * sample + 2];
-      return w - l;
-    } else {
-      return q_values_[sample];
+    // Adds a sample to the batch.
+    void AddInput(InputPlanes&& input) override {
+        planes_.emplace_back(input);
     }
-  }
 
-  float GetDVal(int sample) const override {
-    if (wdl_) {
-      auto d = q_values_[3 * sample + 1];
-      return d;
-    } else {
-      return 0.0f;
+    // Do the computation.
+    void ComputeBlocking() override;
+
+    // Returns how many times AddInput() was called.
+    int GetBatchSize() const override {
+        return static_cast<int>(planes_.size());
     }
-  }
 
-  float GetMVal(int sample) const override {
-    if (moves_left_) {
-      return m_values_[sample];
-    } else {
-      return 0.0f;
+    // Returns Q value of @sample.
+    float GetQVal(int sample) const override {
+        if (wdl_) {
+            auto w = q_values_[3 * sample + 0];
+            auto l = q_values_[3 * sample + 2];
+            return w - l;
+        } else {
+            return q_values_[sample];
+        }
     }
-  }
 
-  // Returns P value @move_id of @sample.
-  float GetPVal(int sample, int move_id) const override {
-    return policies_[sample][move_id];
-  }
+    float GetDVal(int sample) const override {
+        if (wdl_) {
+            auto d = q_values_[3 * sample + 1];
+            return d;
+        } else {
+            return 0.0f;
+        }
+    }
 
- private:
-  void EncodePlanes(const InputPlanes& sample, float* buffer);
+    float GetMVal(int sample) const override {
+        if (moves_left_) {
+            return m_values_[sample];
+        } else {
+            return 0.0f;
+        }
+    }
 
-  static constexpr auto kWidth = 8;
-  static constexpr auto kHeight = 8;
-  static constexpr auto kSquares = kWidth * kHeight;
-  static constexpr auto kPolicyOutputs = 1858;
-  // Number of used planes with convolutional policy.
-  // The real number of planes is higher because of padding.
-  static constexpr auto kPolicyUsedPlanes = 73;
+    // Returns P value @move_id of @sample.
+    float GetPVal(int sample, int move_id) const override {
+        return policies_[sample][move_id];
+    }
 
-  const LegacyWeights& weights_;
-  size_t max_batch_size_;
-  std::vector<InputPlanes> planes_;
-  std::vector<std::vector<float>> policies_;
-  std::vector<float> q_values_;
-  std::vector<float> m_values_;
-  bool wdl_;
-  bool moves_left_;
-  bool conv_policy_;
+private:
+    void EncodePlanes(const InputPlanes& sample, float* buffer);
+
+    static constexpr auto kWidth = 8;
+    static constexpr auto kHeight = 8;
+    static constexpr auto kSquares = kWidth * kHeight;
+    static constexpr auto kPolicyOutputs = 1858;
+    // Number of used planes with convolutional policy.
+    // The real number of planes is higher because of padding.
+    static constexpr auto kPolicyUsedPlanes = 73;
+
+    const LegacyWeights& weights_;
+    size_t max_batch_size_;
+    std::vector<InputPlanes> planes_;
+    std::vector<std::vector<float>> policies_;
+    std::vector<float> q_values_;
+    std::vector<float> m_values_;
+    bool wdl_;
+    bool moves_left_;
+    bool conv_policy_;
 };
 
 template <bool use_eigen>
 class BlasNetwork : public Network {
- public:
-  BlasNetwork(const WeightsFile& weights, const OptionsDict& options);
-  virtual ~BlasNetwork(){};
+public:
+    BlasNetwork(const WeightsFile& weights, const OptionsDict& options);
+    virtual ~BlasNetwork() {};
 
-  std::unique_ptr<NetworkComputation> NewComputation() override {
-    return std::make_unique<BlasComputation<use_eigen>>(
-        weights_, max_batch_size_, wdl_, moves_left_, conv_policy_,
-        blas_cores_);
-  }
+    std::unique_ptr<NetworkComputation> NewComputation() override {
+        return std::make_unique<BlasComputation<use_eigen>>(
+                   weights_, max_batch_size_, wdl_, moves_left_, conv_policy_,
+                   blas_cores_);
+    }
 
-  const NetworkCapabilities& GetCapabilities() const override {
-    return capabilities_;
-  }
+    const NetworkCapabilities& GetCapabilities() const override {
+        return capabilities_;
+    }
 
- private:
-  // A cap on the max batch size since it consumes a lot of memory
-  static constexpr auto kHardMaxBatchSize = 2048;
+private:
+    // A cap on the max batch size since it consumes a lot of memory
+    static constexpr auto kHardMaxBatchSize = 2048;
 
-  const NetworkCapabilities capabilities_;
-  LegacyWeights weights_;
-  size_t max_batch_size_;
-  bool wdl_;
-  bool moves_left_;
-  bool conv_policy_;
-  int blas_cores_;
+    const NetworkCapabilities capabilities_;
+    LegacyWeights weights_;
+    size_t max_batch_size_;
+    bool wdl_;
+    bool moves_left_;
+    bool conv_policy_;
+    int blas_cores_;
 };
 
 template <bool use_eigen>
@@ -156,259 +160,259 @@ BlasComputation<use_eigen>::BlasComputation(
       moves_left_(moves_left),
       conv_policy_(conv_policy) {
 #ifdef USE_DNNL
-  omp_set_num_threads(blas_cores);
+    omp_set_num_threads(blas_cores);
 #else
-  // Silence unused parameter warning.
-  (void)blas_cores;
+    // Silence unused parameter warning.
+    (void)blas_cores;
 #endif
 }
 
 template <bool use_eigen>
 void BlasComputation<use_eigen>::ComputeBlocking() {
-  // Retrieve network key dimensions from the weights structure.
-  const auto num_value_channels = weights_.ip1_val_b.size();
-  const auto num_moves_channels = weights_.ip1_mov_b.size();
-  const auto num_value_input_planes = weights_.value.biases.size();
-  const auto num_policy_input_planes = weights_.policy.biases.size();
-  const auto num_moves_input_planes = weights_.moves_left.biases.size();
-  const auto num_output_policy = static_cast<size_t>(kPolicyOutputs);
-  const auto output_channels = weights_.input.biases.size();
+    // Retrieve network key dimensions from the weights structure.
+    const auto num_value_channels = weights_.ip1_val_b.size();
+    const auto num_moves_channels = weights_.ip1_mov_b.size();
+    const auto num_value_input_planes = weights_.value.biases.size();
+    const auto num_policy_input_planes = weights_.policy.biases.size();
+    const auto num_moves_input_planes = weights_.moves_left.biases.size();
+    const auto num_output_policy = static_cast<size_t>(kPolicyOutputs);
+    const auto output_channels = weights_.input.biases.size();
 
-  // max_channels is the maximum number of input channels of any
-  // convolution.
-  // Residual blocks are identical, but the first convolution might be bigger
-  // when the network has very few filters
-  const auto input_channels = static_cast<size_t>(kInputPlanes);
-  const auto max_channels = std::max(output_channels, input_channels);
+    // max_channels is the maximum number of input channels of any
+    // convolution.
+    // Residual blocks are identical, but the first convolution might be bigger
+    // when the network has very few filters
+    const auto input_channels = static_cast<size_t>(kInputPlanes);
+    const auto max_channels = std::max(output_channels, input_channels);
 
-  // The policy head may increase convolution max output size.
-  const auto max_output_channels =
-      (conv_policy_ && weights_.policy.biases.size() > output_channels)
-          ? weights_.policy.biases.size()
-          : output_channels;
+    // The policy head may increase convolution max output size.
+    const auto max_output_channels =
+        (conv_policy_ && weights_.policy.biases.size() > output_channels)
+        ? weights_.policy.biases.size()
+        : output_channels;
 
-  // Determine the largest batch for allocations.
-  const auto plane_count = planes_.size();
-  const auto largest_batch_size = std::min(max_batch_size_, plane_count);
+    // Determine the largest batch for allocations.
+    const auto plane_count = planes_.size();
+    const auto largest_batch_size = std::min(max_batch_size_, plane_count);
 
-  /* Typically
-   input_channels = 112
-   output_channels = 192
-   max_channels = 192
-   num_value_input_planes = 32
-   num_policy_input_planes = 32
-   num_value_channels = 128
-   num_output_policy = 1858
-   */
+    /* Typically
+     input_channels = 112
+     output_channels = 192
+     max_channels = 192
+     num_value_input_planes = 32
+     num_policy_input_planes = 32
+     num_value_channels = 128
+     num_output_policy = 1858
+     */
 
-  // Allocate data for the whole batch.
-  size_t max_fc_channels = std::max(
-      num_value_channels, std::max(num_output_policy, num_moves_channels));
-  std::vector<float> output_fc(largest_batch_size * max_fc_channels);
+    // Allocate data for the whole batch.
+    size_t max_fc_channels = std::max(
+                                 num_value_channels, std::max(num_output_policy, num_moves_channels));
+    std::vector<float> output_fc(largest_batch_size * max_fc_channels);
 
-  std::vector<float> res_buffer1(largest_batch_size * max_channels * kSquares);
-  std::vector<float> res_buffer2(largest_batch_size * output_channels *
-                                 kSquares);
-  std::vector<float> res_buffer3(largest_batch_size * output_channels *
-                                 kSquares);
+    std::vector<float> res_buffer1(largest_batch_size * max_channels * kSquares);
+    std::vector<float> res_buffer2(largest_batch_size * output_channels *
+                                   kSquares);
+    std::vector<float> res_buffer3(largest_batch_size * output_channels *
+                                   kSquares);
 
-  WinogradConvolution3<use_eigen> convolve3(largest_batch_size, max_channels,
-                                            max_output_channels);
+    WinogradConvolution3<use_eigen> convolve3(largest_batch_size, max_channels,
+            max_output_channels);
 
-  size_t max_head_planes =
-      std::max(num_policy_input_planes,
-               std::max(num_value_input_planes, num_moves_input_planes));
-  std::vector<float> head_buffer(largest_batch_size * max_head_planes *
-                                 kSquares);
+    size_t max_head_planes =
+        std::max(num_policy_input_planes,
+                 std::max(num_value_input_planes, num_moves_input_planes));
+    std::vector<float> head_buffer(largest_batch_size * max_head_planes *
+                                   kSquares);
 
-  // These ones will rotate during the computation.
-  float* conv_in = res_buffer1.data();
-  float* conv_out = res_buffer2.data();
-  float* res = res_buffer3.data();
+    // These ones will rotate during the computation.
+    float* conv_in = res_buffer1.data();
+    float* conv_out = res_buffer2.data();
+    float* res = res_buffer3.data();
 
-  for (size_t i = 0; i < plane_count; i += largest_batch_size) {
-    const auto batch_size = std::min(plane_count - i, largest_batch_size);
-    for (size_t j = 0; j < batch_size; j++) {
-      EncodePlanes(planes_[i + j], &conv_in[j * kSquares * kInputPlanes]);
-    }
-
-    // Input convolution
-
-    convolve3.Forward(batch_size, kInputPlanes, output_channels, conv_in,
-                      weights_.input.weights.data(), conv_out);
-
-    BiasResidualRelu(batch_size, output_channels, conv_out,
-                     weights_.input.biases.data());
-
-    // Residual tower
-
-    for (auto& residual : weights_.residual) {
-      const auto& conv1 = residual.conv1;
-      const auto& conv2 = residual.conv2;
-      const auto& se = residual.se;
-
-      std::swap(conv_out, conv_in);
-
-      convolve3.Forward(batch_size, output_channels, output_channels, conv_in,
-                        conv1.weights.data(), conv_out);
-
-      BiasResidualRelu(batch_size, output_channels, &conv_out[0],
-                       conv1.biases.data());
-
-      std::swap(conv_in, res);
-      std::swap(conv_out, conv_in);
-
-      convolve3.Forward(batch_size, output_channels, output_channels, conv_in,
-                        conv2.weights.data(), conv_out);
-
-      if (residual.has_se) {
-        // No relu if followed by SE-unit and residual is added later
-        BiasResidualRelu(batch_size, output_channels, &conv_out[0],
-                         conv2.biases.data(), nullptr, false);
-
-        std::swap(conv_out, conv_in);
-
-        auto se_fc_outputs = se.b1.size();
-        ApplySEUnit<use_eigen>(batch_size, output_channels, se_fc_outputs,
-                               conv_in, res, se.w1.data(), se.b1.data(),
-                               se.w2.data(), se.b2.data(), conv_out);
-      } else {
-        BiasResidualRelu(batch_size, output_channels, &conv_out[0],
-                         conv2.biases.data(), res);
-      }
-    }
-
-    if (conv_policy_) {
-      // Need to preserve conv_out which is used for value head
-      convolve3.Forward(batch_size, output_channels, output_channels, conv_out,
-                        weights_.policy1.weights.data(), res);
-
-      BiasResidualRelu(batch_size, output_channels, &res[0],
-                       weights_.policy1.biases.data());
-
-      convolve3.Forward(batch_size, output_channels, num_policy_input_planes,
-                        res, weights_.policy.weights.data(),
-                        head_buffer.data());
-
-      BiasResidualRelu(batch_size, num_policy_input_planes,
-                       &head_buffer.data()[0], weights_.policy.biases.data(),
-                       nullptr, false);
-
-      // Mapping from convolutional policy to lc0 policy
-      for (auto batch = size_t{0}; batch < batch_size; batch++) {
-        for (auto i = 0; i < kPolicyUsedPlanes * kSquares; i++) {
-          auto j = kConvPolicyMap[i];
-          if (j >= 0) {
-            output_fc[batch * num_output_policy + j] =
-                head_buffer[batch * num_policy_input_planes * kSquares + i];
-          }
+    for (size_t i = 0; i < plane_count; i += largest_batch_size) {
+        const auto batch_size = std::min(plane_count - i, largest_batch_size);
+        for (size_t j = 0; j < batch_size; j++) {
+            EncodePlanes(planes_[i + j], &conv_in[j * kSquares * kInputPlanes]);
         }
-      }
 
-    } else {
-      Convolution1<use_eigen>::Forward(
-          batch_size, output_channels, num_policy_input_planes, conv_out,
-          weights_.policy.weights.data(), head_buffer.data());
+        // Input convolution
 
-      BiasResidualRelu(batch_size, num_policy_input_planes, &head_buffer[0],
-                       weights_.policy.biases.data());
+        convolve3.Forward(batch_size, kInputPlanes, output_channels, conv_in,
+                          weights_.input.weights.data(), conv_out);
 
-      FullyConnectedLayer<use_eigen>::Forward1D(
-          batch_size, num_policy_input_planes * kSquares, num_output_policy,
-          head_buffer.data(), weights_.ip_pol_w.data(),
-          weights_.ip_pol_b.data(),
-          false,  // Relu Off
-          output_fc.data());
+        BiasResidualRelu(batch_size, output_channels, conv_out,
+                         weights_.input.biases.data());
+
+        // Residual tower
+
+        for (auto& residual : weights_.residual) {
+            const auto& conv1 = residual.conv1;
+            const auto& conv2 = residual.conv2;
+            const auto& se = residual.se;
+
+            std::swap(conv_out, conv_in);
+
+            convolve3.Forward(batch_size, output_channels, output_channels, conv_in,
+                              conv1.weights.data(), conv_out);
+
+            BiasResidualRelu(batch_size, output_channels, &conv_out[0],
+                             conv1.biases.data());
+
+            std::swap(conv_in, res);
+            std::swap(conv_out, conv_in);
+
+            convolve3.Forward(batch_size, output_channels, output_channels, conv_in,
+                              conv2.weights.data(), conv_out);
+
+            if (residual.has_se) {
+                // No relu if followed by SE-unit and residual is added later
+                BiasResidualRelu(batch_size, output_channels, &conv_out[0],
+                                 conv2.biases.data(), nullptr, false);
+
+                std::swap(conv_out, conv_in);
+
+                auto se_fc_outputs = se.b1.size();
+                ApplySEUnit<use_eigen>(batch_size, output_channels, se_fc_outputs,
+                                       conv_in, res, se.w1.data(), se.b1.data(),
+                                       se.w2.data(), se.b2.data(), conv_out);
+            } else {
+                BiasResidualRelu(batch_size, output_channels, &conv_out[0],
+                                 conv2.biases.data(), res);
+            }
+        }
+
+        if (conv_policy_) {
+            // Need to preserve conv_out which is used for value head
+            convolve3.Forward(batch_size, output_channels, output_channels, conv_out,
+                              weights_.policy1.weights.data(), res);
+
+            BiasResidualRelu(batch_size, output_channels, &res[0],
+                             weights_.policy1.biases.data());
+
+            convolve3.Forward(batch_size, output_channels, num_policy_input_planes,
+                              res, weights_.policy.weights.data(),
+                              head_buffer.data());
+
+            BiasResidualRelu(batch_size, num_policy_input_planes,
+                             &head_buffer.data()[0], weights_.policy.biases.data(),
+                             nullptr, false);
+
+            // Mapping from convolutional policy to lc0 policy
+            for (auto batch = size_t{0}; batch < batch_size; batch++) {
+                for (auto i = 0; i < kPolicyUsedPlanes * kSquares; i++) {
+                    auto j = kConvPolicyMap[i];
+                    if (j >= 0) {
+                        output_fc[batch * num_output_policy + j] =
+                            head_buffer[batch * num_policy_input_planes * kSquares + i];
+                    }
+                }
+            }
+
+        } else {
+            Convolution1<use_eigen>::Forward(
+                batch_size, output_channels, num_policy_input_planes, conv_out,
+                weights_.policy.weights.data(), head_buffer.data());
+
+            BiasResidualRelu(batch_size, num_policy_input_planes, &head_buffer[0],
+                             weights_.policy.biases.data());
+
+            FullyConnectedLayer<use_eigen>::Forward1D(
+                batch_size, num_policy_input_planes * kSquares, num_output_policy,
+                head_buffer.data(), weights_.ip_pol_w.data(),
+                weights_.ip_pol_b.data(),
+                false,  // Relu Off
+                output_fc.data());
+        }
+
+        for (size_t j = 0; j < batch_size; j++) {
+            std::vector<float> policy(num_output_policy);
+
+            // Get the moves
+            policy.assign(output_fc.begin() + j * num_output_policy,
+                          output_fc.begin() + (j + 1) * num_output_policy);
+            policies_.emplace_back(std::move(policy));
+        }
+
+        // Value head
+        Convolution1<use_eigen>::Forward(
+            batch_size, output_channels, num_value_input_planes, conv_out,
+            weights_.value.weights.data(), head_buffer.data());
+
+        BiasResidualRelu(batch_size, num_value_input_planes, &head_buffer[0],
+                         weights_.value.biases.data());
+
+        FullyConnectedLayer<use_eigen>::Forward1D(
+            batch_size, num_value_input_planes * kSquares, num_value_channels,
+            head_buffer.data(), weights_.ip1_val_w.data(),
+            weights_.ip1_val_b.data(),
+            true,  // Relu On
+            output_fc.data());
+
+        // Now get the score
+        if (wdl_) {
+            std::vector<float> wdl(3 * batch_size);
+            FullyConnectedLayer<use_eigen>::Forward1D(
+                batch_size, num_value_channels, 3, output_fc.data(),
+                weights_.ip2_val_w.data(), weights_.ip2_val_b.data(),
+                false,  // Relu Off
+                wdl.data());
+
+            for (size_t j = 0; j < batch_size; j++) {
+                std::vector<float> wdl_softmax(3);
+                SoftmaxActivation(3, &wdl[j * 3], wdl_softmax.data());
+
+                q_values_.emplace_back(wdl_softmax[0]);
+                q_values_.emplace_back(wdl_softmax[1]);
+                q_values_.emplace_back(wdl_softmax[2]);
+            }
+        } else {
+            for (size_t j = 0; j < batch_size; j++) {
+                double winrate = FullyConnectedLayer<use_eigen>::Forward0D(
+                                     num_value_channels, weights_.ip2_val_w.data(),
+                                     &output_fc[j * num_value_channels]) +
+                                 weights_.ip2_val_b[0];
+
+                q_values_.emplace_back(std::tanh(winrate));
+            }
+        }
+        if (moves_left_) {
+            Convolution1<use_eigen>::Forward(
+                batch_size, output_channels, num_moves_input_planes, conv_out,
+                weights_.moves_left.weights.data(), head_buffer.data());
+
+            BiasResidualRelu(batch_size, num_moves_input_planes, &head_buffer[0],
+                             weights_.moves_left.biases.data());
+
+            FullyConnectedLayer<use_eigen>::Forward1D(
+                batch_size, num_moves_input_planes * kSquares, num_moves_channels,
+                head_buffer.data(), weights_.ip1_mov_w.data(),
+                weights_.ip1_mov_b.data(),
+                true,  // Relu On
+                output_fc.data());
+
+            std::vector<float> output_moves_left(batch_size);
+            FullyConnectedLayer<use_eigen>::Forward1D(
+                batch_size, num_moves_channels, 1, output_fc.data(),
+                weights_.ip2_mov_w.data(), weights_.ip2_mov_b.data(),
+                true,  // Relu On
+                output_moves_left.data());
+
+            for (size_t j = 0; j < batch_size; j++) {
+                m_values_.emplace_back(output_moves_left[j]);
+            }
+        }
     }
-
-    for (size_t j = 0; j < batch_size; j++) {
-      std::vector<float> policy(num_output_policy);
-
-      // Get the moves
-      policy.assign(output_fc.begin() + j * num_output_policy,
-                    output_fc.begin() + (j + 1) * num_output_policy);
-      policies_.emplace_back(std::move(policy));
-    }
-
-    // Value head
-    Convolution1<use_eigen>::Forward(
-        batch_size, output_channels, num_value_input_planes, conv_out,
-        weights_.value.weights.data(), head_buffer.data());
-
-    BiasResidualRelu(batch_size, num_value_input_planes, &head_buffer[0],
-                     weights_.value.biases.data());
-
-    FullyConnectedLayer<use_eigen>::Forward1D(
-        batch_size, num_value_input_planes * kSquares, num_value_channels,
-        head_buffer.data(), weights_.ip1_val_w.data(),
-        weights_.ip1_val_b.data(),
-        true,  // Relu On
-        output_fc.data());
-
-    // Now get the score
-    if (wdl_) {
-      std::vector<float> wdl(3 * batch_size);
-      FullyConnectedLayer<use_eigen>::Forward1D(
-          batch_size, num_value_channels, 3, output_fc.data(),
-          weights_.ip2_val_w.data(), weights_.ip2_val_b.data(),
-          false,  // Relu Off
-          wdl.data());
-
-      for (size_t j = 0; j < batch_size; j++) {
-        std::vector<float> wdl_softmax(3);
-        SoftmaxActivation(3, &wdl[j * 3], wdl_softmax.data());
-
-        q_values_.emplace_back(wdl_softmax[0]);
-        q_values_.emplace_back(wdl_softmax[1]);
-        q_values_.emplace_back(wdl_softmax[2]);
-      }
-    } else {
-      for (size_t j = 0; j < batch_size; j++) {
-        double winrate = FullyConnectedLayer<use_eigen>::Forward0D(
-                             num_value_channels, weights_.ip2_val_w.data(),
-                             &output_fc[j * num_value_channels]) +
-                         weights_.ip2_val_b[0];
-
-        q_values_.emplace_back(std::tanh(winrate));
-      }
-    }
-    if (moves_left_) {
-      Convolution1<use_eigen>::Forward(
-          batch_size, output_channels, num_moves_input_planes, conv_out,
-          weights_.moves_left.weights.data(), head_buffer.data());
-
-      BiasResidualRelu(batch_size, num_moves_input_planes, &head_buffer[0],
-                       weights_.moves_left.biases.data());
-
-      FullyConnectedLayer<use_eigen>::Forward1D(
-          batch_size, num_moves_input_planes * kSquares, num_moves_channels,
-          head_buffer.data(), weights_.ip1_mov_w.data(),
-          weights_.ip1_mov_b.data(),
-          true,  // Relu On
-          output_fc.data());
-
-      std::vector<float> output_moves_left(batch_size);
-      FullyConnectedLayer<use_eigen>::Forward1D(
-          batch_size, num_moves_channels, 1, output_fc.data(),
-          weights_.ip2_mov_w.data(), weights_.ip2_mov_b.data(),
-          true,  // Relu On
-          output_moves_left.data());
-
-      for (size_t j = 0; j < batch_size; j++) {
-        m_values_.emplace_back(output_moves_left[j]);
-      }
-    }
-  }
 }
 
 template <bool use_eigen>
 void BlasComputation<use_eigen>::EncodePlanes(const InputPlanes& sample,
-                                              float* buffer) {
-  for (const InputPlane& plane : sample) {
-    const float value = plane.value;
-    for (auto i = 0; i < kSquares; i++)
-      *(buffer++) = (plane.mask & (((uint64_t)1) << i)) != 0 ? value : 0;
-  }
+        float* buffer) {
+    for (const InputPlane& plane : sample) {
+        const float value = plane.value;
+        for (auto i = 0; i < kSquares; i++)
+            *(buffer++) = (plane.mask & (((uint64_t)1) << i)) != 0 ? value : 0;
+    }
 }
 
 template <bool use_eigen>
@@ -417,137 +421,137 @@ BlasNetwork<use_eigen>::BlasNetwork(const WeightsFile& file,
     : capabilities_{file.format().network_format().input(),
                     file.format().network_format().moves_left()},
       weights_(file.weights()) {
-  if (!use_eigen) {
-    blas_cores_ = options.GetOrDefault<int>("blas_cores", 1);
-  }
+    if (!use_eigen) {
+        blas_cores_ = options.GetOrDefault<int>("blas_cores", 1);
+    }
 
-  max_batch_size_ =
-      static_cast<size_t>(options.GetOrDefault<int>("batch_size", 256));
+    max_batch_size_ =
+        static_cast<size_t>(options.GetOrDefault<int>("batch_size", 256));
 
-  wdl_ = file.format().network_format().value() ==
-         pblczero::NetworkFormat::VALUE_WDL;
+    wdl_ = file.format().network_format().value() ==
+           pblczero::NetworkFormat::VALUE_WDL;
 
-  moves_left_ = file.format().network_format().moves_left() ==
-                pblczero::NetworkFormat::MOVES_LEFT_V1;
+    moves_left_ = file.format().network_format().moves_left() ==
+                  pblczero::NetworkFormat::MOVES_LEFT_V1;
 
-  conv_policy_ = file.format().network_format().policy() ==
-                 pblczero::NetworkFormat::POLICY_CONVOLUTION;
+    conv_policy_ = file.format().network_format().policy() ==
+                   pblczero::NetworkFormat::POLICY_CONVOLUTION;
 
-  if (max_batch_size_ > kHardMaxBatchSize) {
-    max_batch_size_ = kHardMaxBatchSize;
-  }
+    if (max_batch_size_ > kHardMaxBatchSize) {
+        max_batch_size_ = kHardMaxBatchSize;
+    }
 
-  const auto inputChannels = kInputPlanes;
-  const auto channels = static_cast<int>(weights_.input.biases.size());
-  const auto residual_blocks = weights_.residual.size();
+    const auto inputChannels = kInputPlanes;
+    const auto channels = static_cast<int>(weights_.input.biases.size());
+    const auto residual_blocks = weights_.residual.size();
 
-  weights_.input.weights =
-      WinogradFilterTransformF(weights_.input.weights, channels, inputChannels);
+    weights_.input.weights =
+        WinogradFilterTransformF(weights_.input.weights, channels, inputChannels);
 
-  // residual blocks
-  for (size_t i = 0; i < residual_blocks; i++) {
-    auto& residual = weights_.residual[i];
-    auto& conv1 = residual.conv1;
-    auto& conv2 = residual.conv2;
+    // residual blocks
+    for (size_t i = 0; i < residual_blocks; i++) {
+        auto& residual = weights_.residual[i];
+        auto& conv1 = residual.conv1;
+        auto& conv2 = residual.conv2;
 
-    conv1.weights = WinogradFilterTransformF(conv1.weights, channels, channels);
-    conv2.weights = WinogradFilterTransformF(conv2.weights, channels, channels);
-  }
+        conv1.weights = WinogradFilterTransformF(conv1.weights, channels, channels);
+        conv2.weights = WinogradFilterTransformF(conv2.weights, channels, channels);
+    }
 
-  if (conv_policy_) {
-    weights_.policy1.weights =
-        WinogradFilterTransformF(weights_.policy1.weights, channels, channels);
-    auto pol_channels = weights_.policy.biases.size();
-    weights_.policy.weights = WinogradFilterTransformF(weights_.policy.weights,
-                                                       pol_channels, channels);
-  }
+    if (conv_policy_) {
+        weights_.policy1.weights =
+            WinogradFilterTransformF(weights_.policy1.weights, channels, channels);
+        auto pol_channels = weights_.policy.biases.size();
+        weights_.policy.weights = WinogradFilterTransformF(weights_.policy.weights,
+                                  pol_channels, channels);
+    }
 
-  if (use_eigen) {
-    CERR << "Using Eigen version " << EIGEN_WORLD_VERSION << "."
-         << EIGEN_MAJOR_VERSION << "." << EIGEN_MINOR_VERSION;
-    CERR << "Eigen max batch size is " << max_batch_size_ << ".";
-  } else {
+    if (use_eigen) {
+        CERR << "Using Eigen version " << EIGEN_WORLD_VERSION << "."
+             << EIGEN_MAJOR_VERSION << "." << EIGEN_MINOR_VERSION;
+        CERR << "Eigen max batch size is " << max_batch_size_ << ".";
+    } else {
 #ifdef USE_OPENBLAS
-    int num_procs = openblas_get_num_procs();
-    blas_cores_ = std::min(num_procs, blas_cores_);
-    openblas_set_num_threads(blas_cores_);
-    const char* core_name = openblas_get_corename();
-    const char* config = openblas_get_config();
-    CERR << "BLAS vendor: OpenBLAS.";
-    CERR << "OpenBLAS [" << config << "].";
-    CERR << "OpenBLAS found " << num_procs << " " << core_name << " core(s).";
-    CERR << "OpenBLAS using " << blas_cores_ << " core(s) for this backend.";
+        int num_procs = openblas_get_num_procs();
+        blas_cores_ = std::min(num_procs, blas_cores_);
+        openblas_set_num_threads(blas_cores_);
+        const char* core_name = openblas_get_corename();
+        const char* config = openblas_get_config();
+        CERR << "BLAS vendor: OpenBLAS.";
+        CERR << "OpenBLAS [" << config << "].";
+        CERR << "OpenBLAS found " << num_procs << " " << core_name << " core(s).";
+        CERR << "OpenBLAS using " << blas_cores_ << " core(s) for this backend.";
 #endif
 
 #ifdef USE_MKL
-    int max_procs = mkl_get_max_threads();
-    blas_cores_ = std::min(max_procs, blas_cores_);
-    mkl_set_num_threads(blas_cores_);
-    CERR << "BLAS vendor: MKL.";
-    constexpr int len = 256;
-    char versionbuf[len];
-    mkl_get_version_string(versionbuf, len);
-    CERR << "MKL " << versionbuf << ".";
-    MKLVersion version;
-    mkl_get_version(&version);
-    CERR << "MKL platform: " << version.Platform
-         << ", processor: " << version.Processor << ".";
-    CERR << "MKL can use up to " << max_procs << " thread(s).";
-    CERR << "MKL using " << blas_cores_ << " thread(s) for this backend.";
+        int max_procs = mkl_get_max_threads();
+        blas_cores_ = std::min(max_procs, blas_cores_);
+        mkl_set_num_threads(blas_cores_);
+        CERR << "BLAS vendor: MKL.";
+        constexpr int len = 256;
+        char versionbuf[len];
+        mkl_get_version_string(versionbuf, len);
+        CERR << "MKL " << versionbuf << ".";
+        MKLVersion version;
+        mkl_get_version(&version);
+        CERR << "MKL platform: " << version.Platform
+             << ", processor: " << version.Processor << ".";
+        CERR << "MKL can use up to " << max_procs << " thread(s).";
+        CERR << "MKL using " << blas_cores_ << " thread(s) for this backend.";
 #endif
 
 #ifdef USE_DNNL
-    int max_procs = omp_get_max_threads();
-    blas_cores_ = std::min(max_procs, blas_cores_);
-    const dnnl_version_t* ver = dnnl_version();
-    CERR << "BLAS functions from DNNL version " << ver->major << "."
-         << ver->minor << "." << ver->patch;
-    CERR << "DNNL using up to " << blas_cores_ << " core(s) per search thread";
+        int max_procs = omp_get_max_threads();
+        blas_cores_ = std::min(max_procs, blas_cores_);
+        const dnnl_version_t* ver = dnnl_version();
+        CERR << "BLAS functions from DNNL version " << ver->major << "."
+             << ver->minor << "." << ver->patch;
+        CERR << "DNNL using up to " << blas_cores_ << " core(s) per search thread";
 #endif
 
 #ifdef USE_ACCELERATE
-    CERR << "BLAS vendor: Apple vecLib.";
-    CERR << "Apple vecLib ignores blas_cores (" << blas_cores_
-         << ") parameter.";
+        CERR << "BLAS vendor: Apple vecLib.";
+        CERR << "Apple vecLib ignores blas_cores (" << blas_cores_
+             << ") parameter.";
 #endif
-    CERR << "BLAS max batch size is " << max_batch_size_ << ".";
-  }
+        CERR << "BLAS max batch size is " << max_batch_size_ << ".";
+    }
 }
 
 template <bool use_eigen>
 std::unique_ptr<Network> MakeBlasNetwork(const std::optional<WeightsFile>& w,
-                                         const OptionsDict& options) {
-  if (!w) {
-    throw Exception("The " + std::string(use_eigen ? "eigen" : "blas") +
-                    " backend requires a network file.");
-  }
-  const WeightsFile& weights = *w;
-  if (weights.format().network_format().network() !=
-          pblczero::NetworkFormat::NETWORK_CLASSICAL_WITH_HEADFORMAT &&
-      weights.format().network_format().network() !=
-          pblczero::NetworkFormat::NETWORK_SE_WITH_HEADFORMAT) {
-    throw Exception(
-        "Network format " +
-        std::to_string(weights.format().network_format().network()) +
-        " is not supported by BLAS backend.");
-  }
-  if (weights.format().network_format().policy() !=
-          pblczero::NetworkFormat::POLICY_CLASSICAL &&
-      weights.format().network_format().policy() !=
-          pblczero::NetworkFormat::POLICY_CONVOLUTION) {
-    throw Exception("Policy format " +
-                    std::to_string(weights.format().network_format().policy()) +
-                    " is not supported by BLAS backend.");
-  }
-  if (weights.format().network_format().value() !=
-          pblczero::NetworkFormat::VALUE_CLASSICAL &&
-      weights.format().network_format().value() !=
-          pblczero::NetworkFormat::VALUE_WDL) {
-    throw Exception("Value format " +
-                    std::to_string(weights.format().network_format().value()) +
-                    " is not supported by BLAS backend.");
-  }
-  return std::make_unique<BlasNetwork<use_eigen>>(weights, options);
+        const OptionsDict& options) {
+    if (!w) {
+        throw Exception("The " + std::string(use_eigen ? "eigen" : "blas") +
+                        " backend requires a network file.");
+    }
+    const WeightsFile& weights = *w;
+    if (weights.format().network_format().network() !=
+            pblczero::NetworkFormat::NETWORK_CLASSICAL_WITH_HEADFORMAT &&
+            weights.format().network_format().network() !=
+            pblczero::NetworkFormat::NETWORK_SE_WITH_HEADFORMAT) {
+        throw Exception(
+            "Network format " +
+            std::to_string(weights.format().network_format().network()) +
+            " is not supported by BLAS backend.");
+    }
+    if (weights.format().network_format().policy() !=
+            pblczero::NetworkFormat::POLICY_CLASSICAL &&
+            weights.format().network_format().policy() !=
+            pblczero::NetworkFormat::POLICY_CONVOLUTION) {
+        throw Exception("Policy format " +
+                        std::to_string(weights.format().network_format().policy()) +
+                        " is not supported by BLAS backend.");
+    }
+    if (weights.format().network_format().value() !=
+            pblczero::NetworkFormat::VALUE_CLASSICAL &&
+            weights.format().network_format().value() !=
+            pblczero::NetworkFormat::VALUE_WDL) {
+        throw Exception("Value format " +
+                        std::to_string(weights.format().network_format().value()) +
+                        " is not supported by BLAS backend.");
+    }
+    return std::make_unique<BlasNetwork<use_eigen>>(weights, options);
 }
 
 #ifdef USE_BLAS

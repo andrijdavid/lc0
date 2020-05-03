@@ -36,46 +36,46 @@ std::vector<std::pair<std::string, std::string>> CommandLine::modes_;
 
 void CommandLine::Init(int argc, const char** argv) {
 #ifdef _WIN32
-  // Under windows argv[0] may not have the extension. Also _get_pgmptr() had
-  // issues in some windows 10 versions, so check returned values carefully.
-  char* pgmptr = nullptr;
-  if (!_get_pgmptr(&pgmptr) && pgmptr != nullptr && *pgmptr) {
-    binary_ = pgmptr;
-  } else {
-    binary_ = argv[0];
-  }
+    // Under windows argv[0] may not have the extension. Also _get_pgmptr() had
+    // issues in some windows 10 versions, so check returned values carefully.
+    char* pgmptr = nullptr;
+    if (!_get_pgmptr(&pgmptr) && pgmptr != nullptr && *pgmptr) {
+        binary_ = pgmptr;
+    } else {
+        binary_ = argv[0];
+    }
 #else
-  binary_ = argv[0];
+    binary_ = argv[0];
 #endif
-  arguments_.clear();
-  std::ostringstream params;
-  for (int i = 1; i < argc; ++i) {
-    params << ' ' << argv[i];
-    arguments_.push_back(argv[i]);
-  }
-  LOGFILE << "Command line: " << binary_ << params.str();
+    arguments_.clear();
+    std::ostringstream params;
+    for (int i = 1; i < argc; ++i) {
+        params << ' ' << argv[i];
+        arguments_.push_back(argv[i]);
+    }
+    LOGFILE << "Command line: " << binary_ << params.str();
 }
 
 bool CommandLine::ConsumeCommand(const std::string& command) {
-  if (arguments_.empty()) return false;
-  if (arguments_[0] != command) return false;
-  arguments_.erase(arguments_.begin());
-  return true;
+    if (arguments_.empty()) return false;
+    if (arguments_[0] != command) return false;
+    arguments_.erase(arguments_.begin());
+    return true;
 }
 
 void CommandLine::RegisterMode(const std::string& mode,
                                const std::string& description) {
-  modes_.emplace_back(mode, description);
+    modes_.emplace_back(mode, description);
 }
 
 std::string CommandLine::BinaryDirectory() {
-  std::string path = binary_;
-  const auto pos = path.find_last_of("\\/");
-  if (pos == std::string::npos) {
-    return ".";
-  }
-  path.resize(pos);
-  return path;
+    std::string path = binary_;
+    const auto pos = path.find_last_of("\\/");
+    if (pos == std::string::npos) {
+        return ".";
+    }
+    path.resize(pos);
+    return path;
 }
 
 }  // namespace lczero

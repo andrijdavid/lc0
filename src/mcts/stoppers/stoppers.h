@@ -37,85 +37,89 @@ namespace lczero {
 
 // Combines multiple stoppers into one.
 class ChainedSearchStopper : public SearchStopper {
- public:
-  ChainedSearchStopper() = default;
-  // Calls stoppers one by one until one of them returns true. If one of
-  // stoppers modifies hints, next stoppers in the chain see that.
-  bool ShouldStop(const IterationStats&, StoppersHints*) override;
-  // Can be nullptr, in that canse stopper is not added.
-  void AddStopper(std::unique_ptr<SearchStopper> stopper);
-  void OnSearchDone(const IterationStats&) override;
+public:
+    ChainedSearchStopper() = default;
+    // Calls stoppers one by one until one of them returns true. If one of
+    // stoppers modifies hints, next stoppers in the chain see that.
+    bool ShouldStop(const IterationStats&, StoppersHints*) override;
+    // Can be nullptr, in that canse stopper is not added.
+    void AddStopper(std::unique_ptr<SearchStopper> stopper);
+    void OnSearchDone(const IterationStats&) override;
 
- private:
-  std::vector<std::unique_ptr<SearchStopper>> stoppers_;
+private:
+    std::vector<std::unique_ptr<SearchStopper>> stoppers_;
 };
 
 // Watches visits (total tree nodes) and predicts remaining visits.
 class VisitsStopper : public SearchStopper {
- public:
-  VisitsStopper(int64_t limit) : nodes_limit_(limit) {}
-  int64_t GetVisitsLimit() const { return nodes_limit_; }
-  bool ShouldStop(const IterationStats&, StoppersHints*) override;
+public:
+    VisitsStopper(int64_t limit) : nodes_limit_(limit) {}
+    int64_t GetVisitsLimit() const {
+        return nodes_limit_;
+    }
+    bool ShouldStop(const IterationStats&, StoppersHints*) override;
 
- private:
-  const int64_t nodes_limit_;
+private:
+    const int64_t nodes_limit_;
 };
 
 // Watches playouts (new tree nodes) and predicts remaining visits.
 class PlayoutsStopper : public SearchStopper {
- public:
-  PlayoutsStopper(int64_t limit) : nodes_limit_(limit) {}
-  int64_t GetVisitsLimit() const { return nodes_limit_; }
-  bool ShouldStop(const IterationStats&, StoppersHints*) override;
+public:
+    PlayoutsStopper(int64_t limit) : nodes_limit_(limit) {}
+    int64_t GetVisitsLimit() const {
+        return nodes_limit_;
+    }
+    bool ShouldStop(const IterationStats&, StoppersHints*) override;
 
- private:
-  const int64_t nodes_limit_;
+private:
+    const int64_t nodes_limit_;
 };
 
 // Computes tree size which may fit into the memory and limits by that tree
 // size.
 class MemoryWatchingStopper : public VisitsStopper {
- public:
-  // Must be in sync with description at kRamLimitMbId.
-  static constexpr size_t kAvgMovesPerPosition = 30;
-  MemoryWatchingStopper(int cache_size, int ram_limit_mb);
+public:
+    // Must be in sync with description at kRamLimitMbId.
+    static constexpr size_t kAvgMovesPerPosition = 30;
+    MemoryWatchingStopper(int cache_size, int ram_limit_mb);
 };
 
 // Stops after time budget is gone.
 class TimeLimitStopper : public SearchStopper {
- public:
-  TimeLimitStopper(int64_t time_limit_ms);
-  bool ShouldStop(const IterationStats&, StoppersHints*) override;
+public:
+    TimeLimitStopper(int64_t time_limit_ms);
+    bool ShouldStop(const IterationStats&, StoppersHints*) override;
 
- protected:
-  int64_t GetTimeLimitMs() const;
+protected:
+    int64_t GetTimeLimitMs() const;
 
- private:
-  const int64_t time_limit_ms_;
+private:
+    const int64_t time_limit_ms_;
 };
 
 // Stops when certain average depth is reached (who needs that?).
 class DepthStopper : public SearchStopper {
- public:
-  DepthStopper(int depth) : depth_(depth) {}
-  bool ShouldStop(const IterationStats&, StoppersHints*) override;
+public:
+    DepthStopper(int depth) : depth_(depth) {}
+    bool ShouldStop(const IterationStats&, StoppersHints*) override;
 
- private:
-  const int depth_;
+private:
+    const int depth_;
 };
 
 // Stops when search doesn't bring required KLD gain.
 class KldGainStopper : public SearchStopper {
- public:
-  KldGainStopper(float min_gain, int average_interval);
-  bool ShouldStop(const IterationStats&, StoppersHints*) override;
+public:
+    KldGainStopper(float min_gain, int average_interval);
+    bool ShouldStop(const IterationStats&, StoppersHints*) override;
 
- private:
-  const double min_gain_;
-  const int average_interval_;
-  Mutex mutex_;
-  std::vector<uint32_t> prev_visits_ GUARDED_BY(mutex_);
-  double prev_child_nodes_ GUARDED_BY(mutex_) = 0.0;
+private:
+    const double min_gain_;
+    const int average_interval_;
+    Mutex mutex_;
+    std::vector<uint32_t> prev_visits_ GUARDED_BY(mutex_);
+    double prev_child_nodes_ GUARDED_BY(mutex_) = 0.0;
 };
 
 // Does many things:
@@ -123,15 +127,15 @@ class KldGainStopper : public SearchStopper {
 // smart pruning factor). When this amount of nodes is not enough for second
 // best move to potentially become the best one, stop the search.
 class SmartPruningStopper : public SearchStopper {
- public:
-  SmartPruningStopper(float smart_pruning_factor, int64_t minimum_batches);
-  bool ShouldStop(const IterationStats&, StoppersHints*) override;
+public:
+    SmartPruningStopper(float smart_pruning_factor, int64_t minimum_batches);
+    bool ShouldStop(const IterationStats&, StoppersHints*) override;
 
- private:
-  const double smart_pruning_factor_;
-  const int64_t minimum_batches_;
-  Mutex mutex_;
-  std::optional<int64_t> first_eval_time_ GUARDED_BY(mutex_);
+private:
+    const double smart_pruning_factor_;
+    const int64_t minimum_batches_;
+    Mutex mutex_;
+    std::optional<int64_t> first_eval_time_ GUARDED_BY(mutex_);
 };
 
 }  // namespace lczero

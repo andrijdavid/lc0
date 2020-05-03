@@ -30,10 +30,10 @@
 namespace lczero {
 
 class BackendBenchmark {
- public:
-  BackendBenchmark() = default;
+public:
+    BackendBenchmark() = default;
 
-  void Run();
+    void Run();
 };
 
 }  // namespace lczero

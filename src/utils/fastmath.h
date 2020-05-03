@@ -40,15 +40,15 @@ namespace lczero {
 // the approximation accuracy. In the final version some constants were slightly
 // modified for better accuracy with 32 bit floating point math.
 inline float FastLog2(const float a) {
-  uint32_t tmp;
-  std::memcpy(&tmp, &a, sizeof(float));
-  uint32_t expb = tmp >> 23;
-  tmp = (tmp & 0x7fffff) | (0x7f << 23);
-  float out;
-  std::memcpy(&out, &tmp, sizeof(float));
-  out -= 1.0f;
-  // Minimize max absolute error.
-  return out * (1.3465552f - 0.34655523f * out) - 127 + expb;
+    uint32_t tmp;
+    std::memcpy(&tmp, &a, sizeof(float));
+    uint32_t expb = tmp >> 23;
+    tmp = (tmp & 0x7fffff) | (0x7f << 23);
+    float out;
+    std::memcpy(&out, &tmp, sizeof(float));
+    out -= 1.0f;
+    // Minimize max absolute error.
+    return out * (1.3465552f - 0.34655523f * out) - 127 + expb;
 }
 
 // Fast approximate 2^x. Does only limited range checking.
@@ -57,29 +57,31 @@ inline float FastLog2(const float a) {
 // approximation accuracy. In the final version some constants were slightly
 // modified for better accuracy with 32 bit floating point math.
 inline float FastPow2(const float a) {
-  if (a < -126) return 0.0;
-  int32_t exp = static_cast<int32_t>(floor(a));
-  float out = a - exp;
-  // Minimize max relative error.
-  out = 1.0f + out * (0.6602339f + 0.33976606f * out);
-  int32_t tmp;
-  std::memcpy(&tmp, &out, sizeof(float));
-  tmp += static_cast<int32_t>(static_cast<uint32_t>(exp) << 23);
-  std::memcpy(&out, &tmp, sizeof(float));
-  return out;
+    if (a < -126) return 0.0;
+    int32_t exp = static_cast<int32_t>(floor(a));
+    float out = a - exp;
+    // Minimize max relative error.
+    out = 1.0f + out * (0.6602339f + 0.33976606f * out);
+    int32_t tmp;
+    std::memcpy(&tmp, &out, sizeof(float));
+    tmp += static_cast<int32_t>(static_cast<uint32_t>(exp) << 23);
+    std::memcpy(&out, &tmp, sizeof(float));
+    return out;
 }
 
 // Fast approximate ln(x). Does no range checking.
 inline float FastLog(const float a) {
-  return 0.6931471805599453f * FastLog2(a);
+    return 0.6931471805599453f * FastLog2(a);
 }
 
 // Fast approximate exp(x). Does only limited range checking.
-inline float FastExp(const float a) { return FastPow2(1.442695040f * a); }
+inline float FastExp(const float a) {
+    return FastPow2(1.442695040f * a);
+}
 
 // Fast logit for more readable code.
 inline float FastLogit(const float a) {
-  return 0.5f * FastLog((1.0f + a) / (1.0f - a));
+    return 0.5f * FastLog((1.0f + a) / (1.0f - a));
 }
 
 }  // namespace lczero

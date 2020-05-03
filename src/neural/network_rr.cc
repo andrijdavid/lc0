@@ -36,57 +36,57 @@ namespace lczero {
 namespace {
 
 class RoundRobinNetwork : public Network {
- public:
-  RoundRobinNetwork(const std::optional<WeightsFile>& weights,
-                    const OptionsDict& options) {
-    const auto parents = options.ListSubdicts();
-    if (parents.empty()) {
-      // If options are empty, or multiplexer configured in root object,
-      // initialize on root object and default backend.
-      auto backends = NetworkFactory::Get()->GetBackendsList();
-      AddBackend(backends[0], weights, options);
+public:
+    RoundRobinNetwork(const std::optional<WeightsFile>& weights,
+                      const OptionsDict& options) {
+        const auto parents = options.ListSubdicts();
+        if (parents.empty()) {
+            // If options are empty, or multiplexer configured in root object,
+            // initialize on root object and default backend.
+            auto backends = NetworkFactory::Get()->GetBackendsList();
+            AddBackend(backends[0], weights, options);
+        }
+
+        for (const auto& name : parents) {
+            AddBackend(name, weights, options.GetSubdict(name));
+        }
     }
 
-    for (const auto& name : parents) {
-      AddBackend(name, weights, options.GetSubdict(name));
+    void AddBackend(const std::string& name,
+                    const std::optional<WeightsFile>& weights,
+                    const OptionsDict& opts) {
+        const std::string backend = opts.GetOrDefault<std::string>("backend", name);
+
+        networks_.emplace_back(
+            NetworkFactory::Get()->Create(backend, weights, opts));
+
+        if (networks_.size() == 1) {
+            capabilities_ = networks_.back()->GetCapabilities();
+        } else {
+            capabilities_.Merge(networks_.back()->GetCapabilities());
+        }
     }
-  }
 
-  void AddBackend(const std::string& name,
-                  const std::optional<WeightsFile>& weights,
-                  const OptionsDict& opts) {
-    const std::string backend = opts.GetOrDefault<std::string>("backend", name);
-
-    networks_.emplace_back(
-        NetworkFactory::Get()->Create(backend, weights, opts));
-
-    if (networks_.size() == 1) {
-      capabilities_ = networks_.back()->GetCapabilities();
-    } else {
-      capabilities_.Merge(networks_.back()->GetCapabilities());
+    std::unique_ptr<NetworkComputation> NewComputation() override {
+        const long long val = ++counter_;
+        return networks_[val % networks_.size()]->NewComputation();
     }
-  }
 
-  std::unique_ptr<NetworkComputation> NewComputation() override {
-    const long long val = ++counter_;
-    return networks_[val % networks_.size()]->NewComputation();
-  }
+    const NetworkCapabilities& GetCapabilities() const override {
+        return capabilities_;
+    }
 
-  const NetworkCapabilities& GetCapabilities() const override {
-    return capabilities_;
-  }
+    ~RoundRobinNetwork() {}
 
-  ~RoundRobinNetwork() {}
-
- private:
-  std::vector<std::unique_ptr<Network>> networks_;
-  std::atomic<long long> counter_;
-  NetworkCapabilities capabilities_;
+private:
+    std::vector<std::unique_ptr<Network>> networks_;
+    std::atomic<long long> counter_;
+    NetworkCapabilities capabilities_;
 };
 
 std::unique_ptr<Network> MakeRoundRobinNetwork(
     const std::optional<WeightsFile>& weights, const OptionsDict& options) {
-  return std::make_unique<RoundRobinNetwork>(weights, options);
+    return std::make_unique<RoundRobinNetwork>(weights, options);
 }
 
 REGISTER_NETWORK("roundrobin", MakeRoundRobinNetwork, -999)

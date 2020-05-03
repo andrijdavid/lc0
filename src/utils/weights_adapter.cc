@@ -29,8 +29,8 @@
 
 namespace lczero {
 float LayerAdapter::Iterator::ExtractValue(const uint16_t* ptr,
-                                           const LayerAdapter* adapter) {
-  return *ptr / static_cast<float>(0xffff) * adapter->range_ + adapter->min_;
+        const LayerAdapter* adapter) {
+    return *ptr / static_cast<float>(0xffff) * adapter->range_ + adapter->min_;
 }
 
 LayerAdapter::LayerAdapter(const pblczero::Weights::Layer& layer)
@@ -40,13 +40,13 @@ LayerAdapter::LayerAdapter(const pblczero::Weights::Layer& layer)
       range_(layer.max_val() - min_) {}
 
 std::vector<float> LayerAdapter::as_vector() const {
-  return std::vector<float>(begin(), end());
+    return std::vector<float>(begin(), end());
 }
 float LayerAdapter::Iterator::operator*() const {
-  return ExtractValue(data_, adapter_);
+    return ExtractValue(data_, adapter_);
 }
 float LayerAdapter::Iterator::operator[](size_t idx) const {
-  return ExtractValue(data_ + idx, adapter_);
+    return ExtractValue(data_ + idx, adapter_);
 }
 
 }  // namespace lczero

@@ -27,106 +27,106 @@
 namespace lczero {
 
 TEST(BoardSquare, BoardSquare) {
-  {
-    auto x = BoardSquare(ChessBoard::C2);
-    EXPECT_EQ(x.row(), 1);
-    EXPECT_EQ(x.col(), 2);
-  }
+    {
+        auto x = BoardSquare(ChessBoard::C2);
+        EXPECT_EQ(x.row(), 1);
+        EXPECT_EQ(x.col(), 2);
+    }
 
-  {
-    auto x = BoardSquare("c2");
-    EXPECT_EQ(x.row(), 1);
-    EXPECT_EQ(x.col(), 2);
-  }
+    {
+        auto x = BoardSquare("c2");
+        EXPECT_EQ(x.row(), 1);
+        EXPECT_EQ(x.col(), 2);
+    }
 
-  {
-    auto x = BoardSquare(1, 2);
-    EXPECT_EQ(x.row(), 1);
-    EXPECT_EQ(x.col(), 2);
-  }
+    {
+        auto x = BoardSquare(1, 2);
+        EXPECT_EQ(x.row(), 1);
+        EXPECT_EQ(x.col(), 2);
+    }
 
-  {
-    auto x = BoardSquare(1, 2);
-    x.Mirror();
-    EXPECT_EQ(x.row(), 6);
-    EXPECT_EQ(x.col(), 2);
-  }
+    {
+        auto x = BoardSquare(1, 2);
+        x.Mirror();
+        EXPECT_EQ(x.row(), 6);
+        EXPECT_EQ(x.col(), 2);
+    }
 }
 
 TEST(ChessBoard, PseudolegalMovesStartingPos) {
-  ChessBoard board;
-  board.SetFromFen(ChessBoard::kStartposFen);
-  board.Mirror();
-  auto moves = board.GeneratePseudolegalMoves();
+    ChessBoard board;
+    board.SetFromFen(ChessBoard::kStartposFen);
+    board.Mirror();
+    auto moves = board.GeneratePseudolegalMoves();
 
-  EXPECT_EQ(moves.size(), 20);
+    EXPECT_EQ(moves.size(), 20);
 }
 
 TEST(ChessBoard, PartialFen) {
-  ChessBoard board;
-  int rule50ply;
-  int gameply;
-  board.SetFromFen("k/1R//K", &rule50ply, &gameply);
-  auto moves = board.GeneratePseudolegalMoves();
+    ChessBoard board;
+    int rule50ply;
+    int gameply;
+    board.SetFromFen("k/1R//K", &rule50ply, &gameply);
+    auto moves = board.GeneratePseudolegalMoves();
 
-  EXPECT_EQ(moves.size(), 19);
-  EXPECT_EQ(rule50ply, 0);
-  EXPECT_EQ(gameply, 1);
+    EXPECT_EQ(moves.size(), 19);
+    EXPECT_EQ(rule50ply, 0);
+    EXPECT_EQ(gameply, 1);
 }
 
 TEST(ChessBoard, PartialFenWithSpaces) {
-  ChessBoard board;
-  int rule50ply;
-  int gameply;
-  board.SetFromFen("   k/1R//K   w   ", &rule50ply, &gameply);
-  auto moves = board.GeneratePseudolegalMoves();
+    ChessBoard board;
+    int rule50ply;
+    int gameply;
+    board.SetFromFen("   k/1R//K   w   ", &rule50ply, &gameply);
+    auto moves = board.GeneratePseudolegalMoves();
 
-  EXPECT_EQ(moves.size(), 19);
-  EXPECT_EQ(rule50ply, 0);
-  EXPECT_EQ(gameply, 1);
+    EXPECT_EQ(moves.size(), 19);
+    EXPECT_EQ(rule50ply, 0);
+    EXPECT_EQ(gameply, 1);
 }
 
 namespace {
 int Perft(const ChessBoard& board, int max_depth, bool dump = false,
           int depth = 0) {
-  if (depth == max_depth) return 1;
-  int total_count = 0;
-  auto moves = board.GeneratePseudolegalMoves();
+    if (depth == max_depth) return 1;
+    int total_count = 0;
+    auto moves = board.GeneratePseudolegalMoves();
 
-  auto legal_moves = board.GenerateLegalMoves();
-  auto iter = legal_moves.begin();
+    auto legal_moves = board.GenerateLegalMoves();
+    auto iter = legal_moves.begin();
 
-  for (const auto& move : moves) {
-    auto new_board = board;
-    new_board.ApplyMove(move);
-    if (new_board.IsUnderCheck()) {
-      if (iter != legal_moves.end()) {
-        EXPECT_NE(iter->as_packed_int(), move.as_packed_int())
-            << board.DebugString() << "legal:[" << iter->as_string()
-            << "]==pseudo:(" << move.as_string() << ") Under check:\n"
-            << new_board.DebugString();
-      }
-      continue;
+    for (const auto& move : moves) {
+        auto new_board = board;
+        new_board.ApplyMove(move);
+        if (new_board.IsUnderCheck()) {
+            if (iter != legal_moves.end()) {
+                EXPECT_NE(iter->as_packed_int(), move.as_packed_int())
+                        << board.DebugString() << "legal:[" << iter->as_string()
+                        << "]==pseudo:(" << move.as_string() << ") Under check:\n"
+                        << new_board.DebugString();
+            }
+            continue;
+        }
+
+        EXPECT_EQ(iter->as_packed_int(), move.as_packed_int())
+                << board.DebugString() << "legal:[" << iter->as_string() << "]pseudo:("
+                << move.as_string() << ") after:\n"
+                << new_board.DebugString();
+
+        new_board.Mirror();
+        ++iter;
+        int count = Perft(new_board, max_depth, dump, depth + 1);
+        if (dump && depth == 0) {
+            Move m = move;
+            if (board.flipped()) m.Mirror();
+            std::cerr << m.as_string() << ": " << count << '\n';
+        }
+        total_count += count;
     }
 
-    EXPECT_EQ(iter->as_packed_int(), move.as_packed_int())
-        << board.DebugString() << "legal:[" << iter->as_string() << "]pseudo:("
-        << move.as_string() << ") after:\n"
-        << new_board.DebugString();
-
-    new_board.Mirror();
-    ++iter;
-    int count = Perft(new_board, max_depth, dump, depth + 1);
-    if (dump && depth == 0) {
-      Move m = move;
-      if (board.flipped()) m.Mirror();
-      std::cerr << m.as_string() << ": " << count << '\n';
-    }
-    total_count += count;
-  }
-
-  EXPECT_EQ(iter, legal_moves.end());
-  return total_count;
+    EXPECT_EQ(iter, legal_moves.end());
+    return total_count;
 }
 }  // namespace
 
@@ -144,68 +144,68 @@ int Perft(const ChessBoard& board, int max_depth, bool dump = false,
 } */
 
 TEST(ChessBoard, MoveGenKiwipete) {
-  ChessBoard board;
-  board.SetFromFen(
-      "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 1 1");
+    ChessBoard board;
+    board.SetFromFen(
+        "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 1 1");
 
-  EXPECT_EQ(Perft(board, 1), 48);
-  EXPECT_EQ(Perft(board, 2), 2039);
-  EXPECT_EQ(Perft(board, 3), 97862);
-  EXPECT_EQ(Perft(board, 4), 4085603);
-  //  EXPECT_EQ(Perft(board, 5), 193690690);
+    EXPECT_EQ(Perft(board, 1), 48);
+    EXPECT_EQ(Perft(board, 2), 2039);
+    EXPECT_EQ(Perft(board, 3), 97862);
+    EXPECT_EQ(Perft(board, 4), 4085603);
+    //  EXPECT_EQ(Perft(board, 5), 193690690);
 }
 
 TEST(ChessBoard, MoveGenPosition3) {
-  ChessBoard board;
-  board.SetFromFen("8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 1 1");
+    ChessBoard board;
+    board.SetFromFen("8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 1 1");
 
-  EXPECT_EQ(Perft(board, 1), 14);
-  EXPECT_EQ(Perft(board, 2), 191);
-  EXPECT_EQ(Perft(board, 3), 2812);
-  EXPECT_EQ(Perft(board, 4), 43238);
-  EXPECT_EQ(Perft(board, 5), 674624);
-  EXPECT_EQ(Perft(board, 6), 11030083);
+    EXPECT_EQ(Perft(board, 1), 14);
+    EXPECT_EQ(Perft(board, 2), 191);
+    EXPECT_EQ(Perft(board, 3), 2812);
+    EXPECT_EQ(Perft(board, 4), 43238);
+    EXPECT_EQ(Perft(board, 5), 674624);
+    EXPECT_EQ(Perft(board, 6), 11030083);
 }
 
 TEST(ChessBoard, MoveGenPosition4) {
-  ChessBoard board;
-  board.SetFromFen(
-      "r2q1rk1/pP1p2pp/Q4n2/bbp1p3/Np6/1B3NBn/pPPP1PPP/R3K2R b KQ - 0 1");
+    ChessBoard board;
+    board.SetFromFen(
+        "r2q1rk1/pP1p2pp/Q4n2/bbp1p3/Np6/1B3NBn/pPPP1PPP/R3K2R b KQ - 0 1");
 
-  EXPECT_EQ(Perft(board, 1), 6);
-  EXPECT_EQ(Perft(board, 2), 264);
-  EXPECT_EQ(Perft(board, 3), 9467);
-  EXPECT_EQ(Perft(board, 4), 422333);
-  EXPECT_EQ(Perft(board, 5), 15833292);
+    EXPECT_EQ(Perft(board, 1), 6);
+    EXPECT_EQ(Perft(board, 2), 264);
+    EXPECT_EQ(Perft(board, 3), 9467);
+    EXPECT_EQ(Perft(board, 4), 422333);
+    EXPECT_EQ(Perft(board, 5), 15833292);
 }
 
 TEST(ChessBoard, MoveGenPosition5) {
-  ChessBoard board;
-  board.SetFromFen("rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8");
+    ChessBoard board;
+    board.SetFromFen("rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8");
 
-  EXPECT_EQ(Perft(board, 1), 44);
-  EXPECT_EQ(Perft(board, 2), 1486);
-  EXPECT_EQ(Perft(board, 3), 62379);
-  EXPECT_EQ(Perft(board, 4), 2103487);
-  //  EXPECT_EQ(Perft(board, 5), 89941194);
+    EXPECT_EQ(Perft(board, 1), 44);
+    EXPECT_EQ(Perft(board, 2), 1486);
+    EXPECT_EQ(Perft(board, 3), 62379);
+    EXPECT_EQ(Perft(board, 4), 2103487);
+    //  EXPECT_EQ(Perft(board, 5), 89941194);
 }
 
 TEST(ChessBoard, MoveGenPosition6) {
-  ChessBoard board;
-  board.SetFromFen(
-      "r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 "
-      "10");
+    ChessBoard board;
+    board.SetFromFen(
+        "r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 "
+        "10");
 
-  EXPECT_EQ(Perft(board, 1), 46);
-  EXPECT_EQ(Perft(board, 2), 2079);
-  EXPECT_EQ(Perft(board, 3), 89890);
-  EXPECT_EQ(Perft(board, 4), 3894594);
+    EXPECT_EQ(Perft(board, 1), 46);
+    EXPECT_EQ(Perft(board, 2), 2079);
+    EXPECT_EQ(Perft(board, 3), 89890);
+    EXPECT_EQ(Perft(board, 4), 3894594);
 }
 
 namespace {
 const struct {
-  const char* const fen;
-  const uint32_t perft[6];
+    const char* const fen;
+    const uint32_t perft[6];
 } kChess960Positions[] = {
     // {"bqnb1rkr/pp3ppp/3ppn2/2p5/5P2/P2P4/NPP1P1PP/BQ1BNRKR w HFhf - 2 9",
     // {21, 528, 12189, 326672, 8146062, 227689589}},  // 1
@@ -235,8 +235,9 @@ const struct {
     // {26, 790, 21238, 642367, 17819770, 544866674}},  // 13
     // {"1qnrkbbr/1pppppp1/p1n4p/8/P7/1P1N1P2/2PPP1PP/QN1RKBBR w HDhd - 0 9",
     // {37, 883, 32187, 815535, 29370838, 783201510}},  // 14
-    {"qn1rkrbb/pp1p1ppp/2p1p3/3n4/4P2P/2NP4/PPP2PP1/Q1NRKRBB w FDfd - 1 9",
-     {24, 585, 14769, 356950, 9482310, 233468620}},  // 15
+    {   "qn1rkrbb/pp1p1ppp/2p1p3/3n4/4P2P/2NP4/PPP2PP1/Q1NRKRBB w FDfd - 1 9",
+        {24, 585, 14769, 356950, 9482310, 233468620}
+    },  // 15
     // {"bb1qnrkr/pp1p1pp1/1np1p3/4N2p/8/1P4P1/P1PPPP1P/BBNQ1RKR w HFhf - 0 9",
     // {29, 864, 25747, 799727, 24219627, 776836316}},  // 16
     // {"bnqbnr1r/p1p1ppkp/3p4/1p4p1/P7/3NP2P/1PPP1PP1/BNQB1RKR w HF - 0 9",
@@ -381,8 +382,9 @@ const struct {
     // {27, 482, 13441, 282259, 8084701, 193484216}},  // 86
     // {"n1brkrqb/pppp3p/n3pp2/6p1/3P1P2/N1P5/PP2P1PP/N1BRKRQB w FDfd - 0 9",
     // {28, 642, 19005, 471729, 14529434, 384837696}},  // 87
-    {"nbnrbk2/p1pppp1p/1p3qr1/6p1/1B1P4/1N6/PPP1PPPP/1BNR1RKQ w d - 2 9",
-     {30, 796, 22780, 687302, 20120565, 641832725}},  // 88
+    {   "nbnrbk2/p1pppp1p/1p3qr1/6p1/1B1P4/1N6/PPP1PPPP/1BNR1RKQ w d - 2 9",
+        {30, 796, 22780, 687302, 20120565, 641832725}
+    },  // 88
     // {"nnrbbrkq/1pp2ppp/3p4/p3p3/3P1P2/1P2P3/P1P3PP/NNRBBKRQ w GC - 1 9", {31,
     // 827, 24538, 663082, 19979594, 549437308}},  // 89
     // {"nnrkbbrq/1pp2p1p/p2pp1p1/2P5/8/8/PP1PPPPP/NNRKBBRQ w Ggc - 0 9", {24,
@@ -535,8 +537,9 @@ const struct {
     // 888, 31630, 789863, 27792175, 719015345}},  // 163
     // {"1bbrnkqr/pp1p1ppp/2p1p3/1n6/5P2/3Q4/PPPPP1PP/NBBRNK1R w HDhd - 2 9",
     // {36, 891, 31075, 781792, 26998966, 702903862}},  // 164
-    {"nrbbnk1r/pp2pppq/8/2pp3p/3P2P1/1N6/PPP1PP1P/1RBBNKQR w HBhb - 0 9",
-     {29, 1036, 31344, 1139166, 35627310, 1310683359}},  // 165
+    {   "nrbbnk1r/pp2pppq/8/2pp3p/3P2P1/1N6/PPP1PP1P/1RBBNKQR w HBhb - 0 9",
+        {29, 1036, 31344, 1139166, 35627310, 1310683359}
+    },  // 165
     // {"nr1nkbqr/ppp3pp/5p2/3pp3/6b1/3PP3/PPP2PPP/NRBNKBQR w hb - 0 9", {18,
     // 664, 13306, 483892, 10658989, 386307449}},  // 166
     // {"nrbnk1rb/ppp1pq1p/3p4/5pp1/2P1P3/1N6/PP1PKPPP/1RBN1QRB w gb - 2 9",
@@ -689,8 +692,9 @@ const struct {
     // 725, 19808, 565006, 16661676, 487354613}},  // 240
     // {"bnrbkq1r/pp2p1pp/5n2/2pp1p2/P7/N1PP4/1P2PPPP/B1RBKQNR w HChc - 1 9",
     // {24, 745, 18494, 584015, 15079602, 488924040}},  // 241
-    {"2rkqbnr/p1pppppp/2b5/1pn5/1P3P1Q/2B5/P1PPP1PP/1NRK1BNR w HChc - 3 9",
-     {33, 904, 30111, 840025, 28194726, 801757709}},  // 242
+    {   "2rkqbnr/p1pppppp/2b5/1pn5/1P3P1Q/2B5/P1PPP1PP/1NRK1BNR w HChc - 3 9",
+        {33, 904, 30111, 840025, 28194726, 801757709}
+    },  // 242
     // {"bnrkqnrb/2pppp2/8/pp4pp/1P5P/6P1/P1PPPPB1/BNRKQNR1 w GCgc - 0 9", {34,
     // 1059, 34090, 1054311, 33195397, 1036498304}},  // 243
     // {"1bbrkq1r/pppp2pp/1n2pp1n/8/2PP4/1N4P1/PP2PP1P/1BBRKQNR w HDhd - 1 9",
@@ -843,8 +847,9 @@ const struct {
     // 1047, 27743, 612305, 17040200}},  // 317
     // {"n1rkrbbn/pqppppp1/7p/1p6/8/1NPP4/PP1KPPPP/1QR1RBBN w ec - 0 9", {25,
     // 674, 17553, 505337, 13421727, 403551903}},  // 318
-    {"1qrkrnbb/1p1p1ppp/pnp1p3/8/3PP3/P6P/1PP2PP1/NQRKRNBB w ECec - 0 9",
-     {24, 688, 17342, 511444, 13322502, 403441498}},  // 319
+    {   "1qrkrnbb/1p1p1ppp/pnp1p3/8/3PP3/P6P/1PP2PP1/NQRKRNBB w ECec - 0 9",
+        {24, 688, 17342, 511444, 13322502, 403441498}
+    },  // 319
     // {"1bnrqkrn/2ppppp1/p7/1p1b3p/3PP1P1/8/PPPQ1P1P/BBNR1KRN w GDgd - 1 9",
     // {35, 925, 32238, 857060, 30458921, 824344087}},  // 320
     // {"bnrbqkr1/ppp2pp1/6n1/3pp2p/1P6/2N3N1/P1PPPPPP/B1RBQRK1 w gc - 0 9",
@@ -997,8 +1002,9 @@ const struct {
     // 751, 27902, 603931, 22443036, 515122176}},  // 394
     // {"qrnnbkrb/p3p1pp/3p1p2/1pp5/PP2P3/8/2PP1PPP/QRNNBRKB w gb - 0 9", {30,
     // 906, 27955, 872526, 27658191, 890966633}},  // 395
-    {"qbrnnkbr/1p2pp1p/p1p3p1/3p4/6P1/P1N4P/1PPPPP2/QBR1NKBR w HChc - 0 9",
-     {26, 701, 18930, 521377, 14733245, 416881799}},  // 396
+    {   "qbrnnkbr/1p2pp1p/p1p3p1/3p4/6P1/P1N4P/1PPPPP2/QBR1NKBR w HChc - 0 9",
+        {26, 701, 18930, 521377, 14733245, 416881799}
+    },  // 396
     // {"qr1b1kbr/1p1ppppp/1n1n4/p1p5/4P3/5NPP/PPPP1P2/QRNB1KBR w HBhb - 1 9",
     // {26, 649, 17235, 451997, 12367604, 342165821}},  // 397
     // {"qrnnkb1r/1pppppp1/7p/p4b2/4P3/5P1P/PPPP2PR/QRNNKBB1 w Bhb - 1 9", {34,
@@ -1151,8 +1157,9 @@ const struct {
     // 823, 26696, 724828, 23266182, 672294132}},  // 471
     // {"rbn1bkrq/ppppp3/4n2p/5pp1/1PN5/2P5/P2PPPPP/RBN1BKRQ w GAga - 0 9", {27,
     // 859, 24090, 796482, 23075785, 789152120}},  // 472
-    {"r1nbbkrq/1ppp2pp/2n2p2/p3p3/5P2/1N4BP/PPPPP1P1/RN1B1KRQ w GAga - 0 9",
-     {25, 774, 20141, 618805, 16718577, 515864053}},  // 473
+    {   "r1nbbkrq/1ppp2pp/2n2p2/p3p3/5P2/1N4BP/PPPPP1P1/RN1B1KRQ w GAga - 0 9",
+        {25, 774, 20141, 618805, 16718577, 515864053}
+    },  // 473
     // {"rnnkbbrq/1pppp1p1/5p2/7p/p6P/3N1P2/PPPPP1PQ/RN1KBBR1 w GAga - 0 9",
     // {29, 673, 20098, 504715, 15545590, 416359581}},  // 474
     // {"r1nkbrqb/pppp1p2/n3p1p1/7p/2P2P2/1P6/P2PPQPP/RNNKBR1B w FAfa - 0 9",
@@ -1305,8 +1312,9 @@ const struct {
     // 756, 21616, 614074, 17602252, 528140595}},  // 548
     // {"1nbbknqr/rpp1ppp1/1Q1p3p/p7/2P2PP1/8/PP1PP2P/RNBBKN1R w HAh - 2 9",
     // {37, 977, 34977, 944867, 33695089, 940198007}},  // 549
-    {"rnb2bqr/ppkpppp1/3n3p/2p5/6PP/2N2P2/PPPPP3/R1BKNBQR w HA - 2 9",
-     {30, 647, 20365, 467780, 15115531, 369257622}},  // 550
+    {   "rnb2bqr/ppkpppp1/3n3p/2p5/6PP/2N2P2/PPPPP3/R1BKNBQR w HA - 2 9",
+        {30, 647, 20365, 467780, 15115531, 369257622}
+    },  // 550
     // {"rn1k1qrb/p1pppppp/bp6/8/4n3/P4BPP/1PPPPP2/RNBKNQR1 w GAga - 2 9", {22,
     // 670, 14998, 451517, 11199653, 339919682}},  // 551
     // {"rb2bnqr/nppkpppp/3p4/p7/1P6/P2N2P1/2PPPP1P/RB1KBNQR w HA - 3 9", {22,
@@ -1459,8 +1467,9 @@ const struct {
     // 634, 19017, 442537, 13674310, 345386924}},  // 625
     // {"brnkqbr1/1pppp1pp/5p2/p7/P1P1P2n/8/1P1P1PP1/BRNKQBRN w GBgb - 0 9",
     // {21, 504, 11672, 305184, 7778289, 217596497}},  // 626
-    {"b1rkqrnb/p1ppp1pp/1p1n4/5p2/5P2/PN5P/1PPPP1P1/BR1KQRNB w FBf - 0 9",
-     {23, 688, 17259, 531592, 14228372, 451842354}},  // 627
+    {   "b1rkqrnb/p1ppp1pp/1p1n4/5p2/5P2/PN5P/1PPPP1P1/BR1KQRNB w FBf - 0 9",
+        {23, 688, 17259, 531592, 14228372, 451842354}
+    },  // 627
     // {"1bbnkqrn/rppppp2/p5p1/7p/7P/P1P1P3/1P1P1PP1/RBBNKQRN w GAg - 1 9", {25,
     // 450, 12391, 263946, 7752404, 185393913}},  // 628
     // {"rnbbkqr1/1pppppp1/7p/p3n3/PP5P/8/1BPPPPP1/RN1BKQRN w GAga - 0 9", {23,
@@ -1613,8 +1622,9 @@ const struct {
     // 628, 17638, 464924, 13787303, 386125234}},  // 702
     // {"rqkn1rbb/1pp1pppp/p7/3p4/3Pn3/2P1PP2/PP4PP/RQKNNRBB w FAfa - 1 9", {20,
     // 527, 12216, 321533, 8082183, 219311659}},  // 703
-    {"bbrkqn1r/1pppppp1/5n2/p7/1PP2P1p/7N/P2PP1PP/BBRKQN1R w HChc - 1 9",
-     {36, 963, 35291, 973839, 35907489, 1034223364}},  // 704
+    {   "bbrkqn1r/1pppppp1/5n2/p7/1PP2P1p/7N/P2PP1PP/BBRKQN1R w HChc - 1 9",
+        {36, 963, 35291, 973839, 35907489, 1034223364}
+    },  // 704
     // {"brkbqn1r/p2ppppp/7n/1p6/P1p3PP/8/1PPPPP1N/BRKBQ1NR w HBhb - 0 9", {18,
     // 583, 11790, 394603, 8858385, 304339862}},  // 705
     // {"brkq1bnr/pp1ppp1p/8/2p2np1/P7/8/1PPPPPPP/BRKQNBNR w HBhb - 0 9", {19,
@@ -1767,8 +1777,9 @@ const struct {
     // {24, 672, 17447, 506189, 13765777, 414930519}},  // 779
     // {"qbrknrb1/p2ppppp/2p3n1/8/p4P2/6PP/1PPPP3/QBRKNRBN w FCfc - 0 9", {29,
     // 759, 23235, 634493, 20416668, 584870558}},  // 780
-    {"1rkb1rbn/p1pp1ppp/3np3/1p6/4qP2/3NB3/PPPPPRPP/QRKB3N w Bfb - 0 9",
-     {22, 923, 22585, 914106, 24049880, 957218571}},  // 781
+    {   "1rkb1rbn/p1pp1ppp/3np3/1p6/4qP2/3NB3/PPPPPRPP/QRKB3N w Bfb - 0 9",
+        {22, 923, 22585, 914106, 24049880, 957218571}
+    },  // 781
     // {"1rknrbbn/p1pp1p1p/8/1p2p1p1/4qPP1/2P5/PP1PP1BP/QRKNR1BN w EBeb - 0 9",
     // {28, 1309, 36355, 1568968, 44576409, 1846382333}},  // 782
     // {"qrk1rn1b/ppppp2p/4n3/3b1pp1/4P2P/5BP1/PPPP1P2/QRKNRNB1 w EBeb - 3 9",
@@ -1921,8 +1932,9 @@ const struct {
     // {23, 571, 13799, 365272, 9224232, 257288920}},  // 856
     // {"rknbb1nq/pppppr2/5pp1/7p/8/1N4P1/PPPPPP1P/RK1BBRNQ w FAa - 2 9", {26,
     // 548, 15618, 350173, 10587626, 253006082}},  // 857
-    {"rknr1bnq/p2pp1pp/1p3p2/2p4b/6PP/2P2N2/PP1PPP2/RKNRBB1Q w DAda - 1 9",
-     {25, 502, 13150, 279098, 7824941, 175766730}},  // 858
+    {   "rknr1bnq/p2pp1pp/1p3p2/2p4b/6PP/2P2N2/PP1PPP2/RKNRBB1Q w DAda - 1 9",
+        {25, 502, 13150, 279098, 7824941, 175766730}
+    },  // 858
     // {"rknrb1qb/ppp1pppp/3p4/8/4P1nP/2P5/PPKP1PP1/R1NRBNQB w da - 1 9", {23,
     // 643, 14849, 426616, 10507328, 312096061}},  // 859
     // {"rbk1rnbq/pppp1npp/4p3/5p2/4P1P1/7P/PPPP1P1N/RBKNR1BQ w EAea - 1 9",
@@ -2075,8 +2087,9 @@ const struct {
     // 741, 19224, 585198, 15605840, 485037906}},  // 933
     // {"rkbr1bq1/ppnppppp/6n1/2p5/2P1N2P/8/PP1PPPP1/RKBRNBQ1 w DAda - 3 9",
     // {24, 547, 14359, 339497, 9410221, 234041078}},  // 934
-    {"1kbrnqnb/r1ppppp1/8/pp5p/8/1P1NP3/P1PP1PPP/RKB1RQNB w Ad - 2 9",
-     {26, 618, 17305, 442643, 13112297, 357030697}},  // 935
+    {   "1kbrnqnb/r1ppppp1/8/pp5p/8/1P1NP3/P1PP1PPP/RKB1RQNB w Ad - 2 9",
+        {26, 618, 17305, 442643, 13112297, 357030697}
+    },  // 935
     // {"rbkrb1qn/1pp1ppp1/3pn2p/pP6/8/4N1P1/P1PPPP1P/RBKRB1QN w DAda - 0 9",
     // {21, 544, 12492, 338832, 8381483, 236013157}},  // 936
     // {"rkrbbnqn/ppppp3/5p2/6pp/5PBP/4P3/PPPP2P1/RKR1BNQN w CAca - 0 9", {30,
@@ -2127,151 +2140,158 @@ const struct {
     // 929, 32020, 896130, 31272517, 915268405}},  // 959
     // {"bbq1nr1r/pppppk1p/2n2p2/6p1/P4P2/4P1P1/1PPP3P/BBQNNRKR w HF - 1 9",
     // {23, 589, 14744, 387556, 10316716, 280056112}},  // 960
-    {"bqrkrbnn/ppp1pppp/8/8/8/8/PPP1PPPP/BQRKRBNN w CKeq - 0 1",
-     {19, 342, 6987, 142308, 3294156, 75460468}},  // 961 castling
-    {"r1bkrn1q/ppbppppp/5n2/2p5/3P4/P6N/1PP1PPPP/RBBKRNQ1 w KQkq - 3 9",
-     {27, 822, 22551, 678880, 19115128, 578210135}},  // 962
-    {"qn1rkrbb/pp1p1ppp/2p1p3/3n4/4P2P/2NP4/PPP2PP1/Q1NRKRBB w KQkq - 1 9",
-     {24, 585, 14769, 356950, 9482310, 233468620}},  // 963
-    {"qnr1bkrb/pppp2pp/3np3/5p2/8/P2P2P1/NPP1PP1P/QN1RBKRB w KQk - 3 9",
-     {33, 823, 26895, 713420, 23114629, 646390782}},  // 964
-    {"bnrbk1qn/1pppprpp/8/p4p1P/6P1/3P4/PPP1PP2/BNRBKRQN w KQq - 0 9",
-     {22, 459, 11447, 268157, 7371098, 190583454}},  // 965
-    {"1rbnkbrq/pppppp2/n5pp/2P5/P7/4N3/1P1PPPPP/RNB1KBRQ w KQk - 2 9",
-     {23, 574, 14146, 391413, 10203438, 301874034}},  // 966
-    {"rbbk1rnq/pppp1pp1/4p2p/8/3P2n1/4BN1P/PPP1PPP1/RB1K1RNQ w KQkq - 3 9",
-     {26, 628, 16151, 411995, 11237919, 300314373}},  // 967
+    {   "bqrkrbnn/ppp1pppp/8/8/8/8/PPP1PPPP/BQRKRBNN w CKeq - 0 1",
+        {19, 342, 6987, 142308, 3294156, 75460468}
+    },  // 961 castling
+    {   "r1bkrn1q/ppbppppp/5n2/2p5/3P4/P6N/1PP1PPPP/RBBKRNQ1 w KQkq - 3 9",
+        {27, 822, 22551, 678880, 19115128, 578210135}
+    },  // 962
+    {   "qn1rkrbb/pp1p1ppp/2p1p3/3n4/4P2P/2NP4/PPP2PP1/Q1NRKRBB w KQkq - 1 9",
+        {24, 585, 14769, 356950, 9482310, 233468620}
+    },  // 963
+    {   "qnr1bkrb/pppp2pp/3np3/5p2/8/P2P2P1/NPP1PP1P/QN1RBKRB w KQk - 3 9",
+        {33, 823, 26895, 713420, 23114629, 646390782}
+    },  // 964
+    {   "bnrbk1qn/1pppprpp/8/p4p1P/6P1/3P4/PPP1PP2/BNRBKRQN w KQq - 0 9",
+        {22, 459, 11447, 268157, 7371098, 190583454}
+    },  // 965
+    {   "1rbnkbrq/pppppp2/n5pp/2P5/P7/4N3/1P1PPPPP/RNB1KBRQ w KQk - 2 9",
+        {23, 574, 14146, 391413, 10203438, 301874034}
+    },  // 966
+    {   "rbbk1rnq/pppp1pp1/4p2p/8/3P2n1/4BN1P/PPP1PPP1/RB1K1RNQ w KQkq - 3 9",
+        {26, 628, 16151, 411995, 11237919, 300314373}
+    },  // 967
 };
 }  // namespace
 
 TEST(ChessBoard, FRC) {
-  // Up to 6 is possible, but too long, so keeping at 4.
-  for (int i = 0; i < 4; ++i) {
-    for (const auto& x : kChess960Positions) {
-      ChessBoard board;
-      board.SetFromFen(x.fen);
-      EXPECT_EQ(Perft(board, i + 1), x.perft[i])
-          << "Position: [" << x.fen << "] Depth: " << i + 1 << "\n"
-          << board.DebugString();
+    // Up to 6 is possible, but too long, so keeping at 4.
+    for (int i = 0; i < 4; ++i) {
+        for (const auto& x : kChess960Positions) {
+            ChessBoard board;
+            board.SetFromFen(x.fen);
+            EXPECT_EQ(Perft(board, i + 1), x.perft[i])
+                    << "Position: [" << x.fen << "] Depth: " << i + 1 << "\n"
+                    << board.DebugString();
+        }
     }
-  }
 }
 
 TEST(ChessBoard, HasMatingMaterialStartPosition) {
-  ChessBoard board;
-  board.SetFromFen(ChessBoard::kStartposFen);
-  EXPECT_TRUE(board.HasMatingMaterial());
+    ChessBoard board;
+    board.SetFromFen(ChessBoard::kStartposFen);
+    EXPECT_TRUE(board.HasMatingMaterial());
 }
 
 TEST(ChessBoard, HasMatingMaterialBareKings) {
-  ChessBoard board;
-  board.SetFromFen("8/8/8/4k3/8/8/2K5/8 w - - 0 1");
-  EXPECT_FALSE(board.HasMatingMaterial());
+    ChessBoard board;
+    board.SetFromFen("8/8/8/4k3/8/8/2K5/8 w - - 0 1");
+    EXPECT_FALSE(board.HasMatingMaterial());
 }
 
 TEST(ChessBoard, HasMatingMaterialSingleMinorPiece) {
-  ChessBoard board;
-  board.SetFromFen("8/8/8/4k3/1N6/8/2K5/8 w - - 0 1");
-  EXPECT_FALSE(board.HasMatingMaterial());
-  board.SetFromFen("8/8/8/4k3/7b/8/2K5/8 w - - 0 1");
-  EXPECT_FALSE(board.HasMatingMaterial());
+    ChessBoard board;
+    board.SetFromFen("8/8/8/4k3/1N6/8/2K5/8 w - - 0 1");
+    EXPECT_FALSE(board.HasMatingMaterial());
+    board.SetFromFen("8/8/8/4k3/7b/8/2K5/8 w - - 0 1");
+    EXPECT_FALSE(board.HasMatingMaterial());
 }
 
 TEST(ChessBoard, HasMatingMaterialSingleMajorPieceOrPawn) {
-  ChessBoard board;
-  board.SetFromFen("8/8/8/4k3/8/5R2/2K5/8 w - - 0 1");
-  EXPECT_TRUE(board.HasMatingMaterial());
-  board.SetFromFen("8/8/8/4k3/8/5q2/2K5/8 w - - 0 1");
-  EXPECT_TRUE(board.HasMatingMaterial());
-  board.SetFromFen("8/8/8/4k3/8/5P2/2K5/8 w - - 0 1");
-  EXPECT_TRUE(board.HasMatingMaterial());
+    ChessBoard board;
+    board.SetFromFen("8/8/8/4k3/8/5R2/2K5/8 w - - 0 1");
+    EXPECT_TRUE(board.HasMatingMaterial());
+    board.SetFromFen("8/8/8/4k3/8/5q2/2K5/8 w - - 0 1");
+    EXPECT_TRUE(board.HasMatingMaterial());
+    board.SetFromFen("8/8/8/4k3/8/5P2/2K5/8 w - - 0 1");
+    EXPECT_TRUE(board.HasMatingMaterial());
 }
 
 TEST(ChessBoard, HasMatingMaterialTwoKnights) {
-  ChessBoard board;
-  board.SetFromFen("8/8/8/3nk3/8/5N2/2K5/8 w - - 0 1");
-  EXPECT_TRUE(board.HasMatingMaterial());
-  board.SetFromFen("8/8/8/3nk3/8/5n2/2K5/8 w - - 0 1");
-  EXPECT_TRUE(board.HasMatingMaterial());
+    ChessBoard board;
+    board.SetFromFen("8/8/8/3nk3/8/5N2/2K5/8 w - - 0 1");
+    EXPECT_TRUE(board.HasMatingMaterial());
+    board.SetFromFen("8/8/8/3nk3/8/5n2/2K5/8 w - - 0 1");
+    EXPECT_TRUE(board.HasMatingMaterial());
 }
 
 TEST(ChessBoard, HasMatingMaterialBishopAndKnight) {
-  ChessBoard board;
-  board.SetFromFen("8/8/8/3bk3/8/5N2/2K5/8 w - - 0 1");
-  EXPECT_TRUE(board.HasMatingMaterial());
-  board.SetFromFen("8/8/8/3Bk3/8/5N2/2K5/8 w - - 0 1");
-  EXPECT_TRUE(board.HasMatingMaterial());
+    ChessBoard board;
+    board.SetFromFen("8/8/8/3bk3/8/5N2/2K5/8 w - - 0 1");
+    EXPECT_TRUE(board.HasMatingMaterial());
+    board.SetFromFen("8/8/8/3Bk3/8/5N2/2K5/8 w - - 0 1");
+    EXPECT_TRUE(board.HasMatingMaterial());
 }
 
 TEST(ChessBoard, HasMatingMaterialMultipleBishopsSameColor) {
-  ChessBoard board;
-  board.SetFromFen("8/8/8/3Bk3/8/5B2/2K5/8 w - - 0 1");
-  EXPECT_FALSE(board.HasMatingMaterial());
-  board.SetFromFen("8/8/8/4kb2/8/2K2B2/8/8 w - - 0 1");
-  EXPECT_FALSE(board.HasMatingMaterial());
-  board.SetFromFen("B7/1B3b2/2B3b1/4k2b/8/8/2K5/8 w - - 0 1");
-  EXPECT_FALSE(board.HasMatingMaterial());
-  board.SetFromFen("B7/1B6/2B5/4k3/8/8/2K5/8 w - - 0 1");
-  EXPECT_FALSE(board.HasMatingMaterial());
+    ChessBoard board;
+    board.SetFromFen("8/8/8/3Bk3/8/5B2/2K5/8 w - - 0 1");
+    EXPECT_FALSE(board.HasMatingMaterial());
+    board.SetFromFen("8/8/8/4kb2/8/2K2B2/8/8 w - - 0 1");
+    EXPECT_FALSE(board.HasMatingMaterial());
+    board.SetFromFen("B7/1B3b2/2B3b1/4k2b/8/8/2K5/8 w - - 0 1");
+    EXPECT_FALSE(board.HasMatingMaterial());
+    board.SetFromFen("B7/1B6/2B5/4k3/8/8/2K5/8 w - - 0 1");
+    EXPECT_FALSE(board.HasMatingMaterial());
 }
 
 TEST(ChessBoard, HasMatingMaterialMultipleBishopsNotSameColor) {
-  ChessBoard board;
-  board.SetFromFen("8/8/8/4k3/8/2K1bb2/8/8 w - - 0 1");
-  EXPECT_TRUE(board.HasMatingMaterial());
-  board.SetFromFen("8/8/8/4k3/8/2K1Bb2/8/8 w - - 0 1");
-  EXPECT_TRUE(board.HasMatingMaterial());
-  board.SetFromFen("8/8/8/4k3/8/2K2b2/5B2/8 w - - 0 1");
-  EXPECT_TRUE(board.HasMatingMaterial());
-  board.SetFromFen("B7/1B3b2/2B3b1/4k2b/7B/8/2K5/8 w - - 0 1");
-  EXPECT_TRUE(board.HasMatingMaterial());
+    ChessBoard board;
+    board.SetFromFen("8/8/8/4k3/8/2K1bb2/8/8 w - - 0 1");
+    EXPECT_TRUE(board.HasMatingMaterial());
+    board.SetFromFen("8/8/8/4k3/8/2K1Bb2/8/8 w - - 0 1");
+    EXPECT_TRUE(board.HasMatingMaterial());
+    board.SetFromFen("8/8/8/4k3/8/2K2b2/5B2/8 w - - 0 1");
+    EXPECT_TRUE(board.HasMatingMaterial());
+    board.SetFromFen("B7/1B3b2/2B3b1/4k2b/7B/8/2K5/8 w - - 0 1");
+    EXPECT_TRUE(board.HasMatingMaterial());
 }
 
 TEST(ChessBoard, CastlingIsSameMove) {
-  ChessBoard board;
-  board.SetFromFen(
-      "r3k2r/ppp1bppp/2np1n2/4p1B1/4P1b1/2NP1N2/PPP1BPPP/R3K2R w KQkq - 0 1");
-  EXPECT_TRUE(board.IsSameMove("e1c1", "e1c1"));
-  EXPECT_TRUE(board.IsSameMove("e1a1", "e1a1"));
-  EXPECT_TRUE(board.IsSameMove("e1c1", "e1a1"));
-  EXPECT_FALSE(board.IsSameMove("e1c1", "e1b1"));
-  EXPECT_FALSE(board.IsSameMove("e1b1", "e1a1"));
-  EXPECT_FALSE(board.IsSameMove("e1c1", "e1g1"));
-  EXPECT_FALSE(board.IsSameMove("e1a1", "e1h1"));
-  EXPECT_FALSE(board.IsSameMove("e1c1", "e1h1"));
-  EXPECT_FALSE(board.IsSameMove("e1a1", "e1g1"));
-  EXPECT_FALSE(board.IsSameMove("e1f1", "e1g1"));
-  EXPECT_FALSE(board.IsSameMove("e1f1", "e1h1"));
-  EXPECT_TRUE(board.IsSameMove("e2c2", "e2c2"));
-  EXPECT_TRUE(board.IsSameMove("e2a2", "e2a2"));
-  EXPECT_FALSE(board.IsSameMove("e2c2", "e2a2"));
+    ChessBoard board;
+    board.SetFromFen(
+        "r3k2r/ppp1bppp/2np1n2/4p1B1/4P1b1/2NP1N2/PPP1BPPP/R3K2R w KQkq - 0 1");
+    EXPECT_TRUE(board.IsSameMove("e1c1", "e1c1"));
+    EXPECT_TRUE(board.IsSameMove("e1a1", "e1a1"));
+    EXPECT_TRUE(board.IsSameMove("e1c1", "e1a1"));
+    EXPECT_FALSE(board.IsSameMove("e1c1", "e1b1"));
+    EXPECT_FALSE(board.IsSameMove("e1b1", "e1a1"));
+    EXPECT_FALSE(board.IsSameMove("e1c1", "e1g1"));
+    EXPECT_FALSE(board.IsSameMove("e1a1", "e1h1"));
+    EXPECT_FALSE(board.IsSameMove("e1c1", "e1h1"));
+    EXPECT_FALSE(board.IsSameMove("e1a1", "e1g1"));
+    EXPECT_FALSE(board.IsSameMove("e1f1", "e1g1"));
+    EXPECT_FALSE(board.IsSameMove("e1f1", "e1h1"));
+    EXPECT_TRUE(board.IsSameMove("e2c2", "e2c2"));
+    EXPECT_TRUE(board.IsSameMove("e2a2", "e2a2"));
+    EXPECT_FALSE(board.IsSameMove("e2c2", "e2a2"));
 }
 
 namespace {
 void TestInvalid(std::string fen) {
-  ChessBoard board;
-  try {
-    board.SetFromFen(fen);
-    FAIL() << "Invalid Fen accepted: " + fen + "\n";
-  } catch (...) {
-    SUCCEED();
-  }
+    ChessBoard board;
+    try {
+        board.SetFromFen(fen);
+        FAIL() << "Invalid Fen accepted: " + fen + "\n";
+    } catch (...) {
+        SUCCEED();
+    }
 }
 }  // namespace
 
 
 TEST(ChessBoard, InvalidFEN) {
-  TestInvalid("rnbqkbnr/ppppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
-  TestInvalid("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR/8 w KQkq - 0 1");
-  TestInvalid("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR g KQkq - 0 1");
-  TestInvalid("rnbqkbnr/ppp2ppp/4p3/3pP3/8/8/PPPP1PPP/RNBQKBNR w KQkq i6 0 3");
-  TestInvalid("rnbqkbnr/ppp2ppp/4p3/3pP3/8/8/PPPP1PPP/RNBQKBNR w KQkq A6 0 3");
+    TestInvalid("rnbqkbnr/ppppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+    TestInvalid("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR/8 w KQkq - 0 1");
+    TestInvalid("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR g KQkq - 0 1");
+    TestInvalid("rnbqkbnr/ppp2ppp/4p3/3pP3/8/8/PPPP1PPP/RNBQKBNR w KQkq i6 0 3");
+    TestInvalid("rnbqkbnr/ppp2ppp/4p3/3pP3/8/8/PPPP1PPP/RNBQKBNR w KQkq A6 0 3");
 }
 
 }  // namespace lczero
 
 int main(int argc, char** argv) {
-  ::testing::InitGoogleTest(&argc, argv);
-  lczero::InitializeMagicBitboards();
-  return RUN_ALL_TESTS();
+    ::testing::InitGoogleTest(&argc, argv);
+    lczero::InitializeMagicBitboards();
+    return RUN_ALL_TESTS();
 }

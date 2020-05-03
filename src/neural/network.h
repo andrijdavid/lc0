@@ -41,33 +41,35 @@ const int kInputPlanes = 112;
 // 0 or some value, unique for the plane. Therefore, input is defined as
 // a bitmask showing where to set the value, and the value itself.
 struct InputPlane {
-  InputPlane() = default;
-  void SetAll() { mask = ~0ull; }
-  void Fill(float val) {
-    SetAll();
-    value = val;
-  }
-  std::uint64_t mask = 0ull;
-  float value = 1.0f;
+    InputPlane() = default;
+    void SetAll() {
+        mask = ~0ull;
+    }
+    void Fill(float val) {
+        SetAll();
+        value = val;
+    }
+    std::uint64_t mask = 0ull;
+    float value = 1.0f;
 };
 using InputPlanes = std::vector<InputPlane>;
 
 // An interface to implement by computing backends.
 class NetworkComputation {
- public:
-  // Adds a sample to the batch.
-  virtual void AddInput(InputPlanes&& input) = 0;
-  // Do the computation.
-  virtual void ComputeBlocking() = 0;
-  // Returns how many times AddInput() was called.
-  virtual int GetBatchSize() const = 0;
-  // Returns Q value of @sample.
-  virtual float GetQVal(int sample) const = 0;
-  virtual float GetDVal(int sample) const = 0;
-  // Returns P value @move_id of @sample.
-  virtual float GetPVal(int sample, int move_id) const = 0;
-  virtual float GetMVal(int sample) const = 0;
-  virtual ~NetworkComputation() {}
+public:
+    // Adds a sample to the batch.
+    virtual void AddInput(InputPlanes&& input) = 0;
+    // Do the computation.
+    virtual void ComputeBlocking() = 0;
+    // Returns how many times AddInput() was called.
+    virtual int GetBatchSize() const = 0;
+    // Returns Q value of @sample.
+    virtual float GetQVal(int sample) const = 0;
+    virtual float GetDVal(int sample) const = 0;
+    // Returns P value @move_id of @sample.
+    virtual float GetPVal(int sample, int move_id) const = 0;
+    virtual float GetMVal(int sample) const = 0;
+    virtual ~NetworkComputation() {}
 };
 
 // The plan:
@@ -83,26 +85,26 @@ class NetworkComputation {
 //    OutputFormat field or other places.
 
 struct NetworkCapabilities {
-  pblczero::NetworkFormat::InputFormat input_format;
-  pblczero::NetworkFormat::MovesLeftFormat moves_left;
-  // TODO expose information of whether GetDVal() is usable or always zero.
+    pblczero::NetworkFormat::InputFormat input_format;
+    pblczero::NetworkFormat::MovesLeftFormat moves_left;
+    // TODO expose information of whether GetDVal() is usable or always zero.
 
-  // Combines capabilities by setting the most restrictive ones. May throw
-  // exception.
-  void Merge(const NetworkCapabilities& other) {
-    if (input_format != other.input_format) {
-      throw Exception("Incompatible input formats, " +
-                      std::to_string(input_format) + " vs " +
-                      std::to_string(other.input_format));
+    // Combines capabilities by setting the most restrictive ones. May throw
+    // exception.
+    void Merge(const NetworkCapabilities& other) {
+        if (input_format != other.input_format) {
+            throw Exception("Incompatible input formats, " +
+                            std::to_string(input_format) + " vs " +
+                            std::to_string(other.input_format));
+        }
     }
-  }
 };
 
 class Network {
- public:
-  virtual const NetworkCapabilities& GetCapabilities() const = 0;
-  virtual std::unique_ptr<NetworkComputation> NewComputation() = 0;
-  virtual ~Network(){};
+public:
+    virtual const NetworkCapabilities& GetCapabilities() const = 0;
+    virtual std::unique_ptr<NetworkComputation> NewComputation() = 0;
+    virtual ~Network() {};
 };
 
 }  // namespace lczero

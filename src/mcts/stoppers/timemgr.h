@@ -41,13 +41,13 @@ namespace lczero {
 // Various statistics that search sends to stoppers for their stopping decision.
 // It is expected that this structure will grow.
 struct IterationStats {
-  int64_t time_since_movestart = 0;
-  int64_t time_since_first_batch = 0;
-  int64_t total_nodes = 0;
-  int64_t nodes_since_movestart = 0;
-  int64_t batches_since_movestart = 0;
-  int average_depth = 0;
-  std::vector<uint32_t> edge_n;
+    int64_t time_since_movestart = 0;
+    int64_t time_since_first_batch = 0;
+    int64_t total_nodes = 0;
+    int64_t nodes_since_movestart = 0;
+    int64_t batches_since_movestart = 0;
+    int average_depth = 0;
+    std::vector<uint32_t> edge_n;
 };
 
 // Hints from stoppers back to the search engine. Currently include:
@@ -56,20 +56,20 @@ struct IterationStats {
 // 2. EstimatedPlayouts -- for smart pruning at root (not pick root nodes that
 // cannot potentially become good).
 class StoppersHints {
- public:
-  StoppersHints();
-  void Reset();
-  void UpdateEstimatedRemainingTimeMs(int64_t v);
-  int64_t GetEstimatedRemainingTimeMs() const;
-  void UpdateEstimatedRemainingRemainingPlayouts(int64_t v);
-  int64_t GetEstimatedRemainingPlayouts() const;
-  void UpdateEstimatedNps(float v);
-  std::optional<float> GetEstimatedNps() const;
+public:
+    StoppersHints();
+    void Reset();
+    void UpdateEstimatedRemainingTimeMs(int64_t v);
+    int64_t GetEstimatedRemainingTimeMs() const;
+    void UpdateEstimatedRemainingRemainingPlayouts(int64_t v);
+    int64_t GetEstimatedRemainingPlayouts() const;
+    void UpdateEstimatedNps(float v);
+    std::optional<float> GetEstimatedNps() const;
 
- private:
-  int64_t remaining_time_ms_;
-  int64_t remaining_playouts_;
-  std::optional<float> estimated_nps_;
+private:
+    int64_t remaining_time_ms_;
+    int64_t remaining_playouts_;
+    std::optional<float> estimated_nps_;
 };
 
 // Interface for search stopper.
@@ -81,21 +81,21 @@ class StoppersHints {
 // them is fine without synchronization.
 // 3. OnSearchDone is guaranteed to be called once (i.e. from only one thread).
 class SearchStopper {
- public:
-  virtual ~SearchStopper() = default;
-  // Question to a stopper whether search should stop.
-  // Search statistics is sent via IterationStats, the stopper can optionally
-  // send hints to the search through StoppersHints.
-  virtual bool ShouldStop(const IterationStats&, StoppersHints*) = 0;
-  // Is called when search is done.
-  virtual void OnSearchDone(const IterationStats&) {}
+public:
+    virtual ~SearchStopper() = default;
+    // Question to a stopper whether search should stop.
+    // Search statistics is sent via IterationStats, the stopper can optionally
+    // send hints to the search through StoppersHints.
+    virtual bool ShouldStop(const IterationStats&, StoppersHints*) = 0;
+    // Is called when search is done.
+    virtual void OnSearchDone(const IterationStats&) {}
 };
 
 class TimeManager {
- public:
-  virtual ~TimeManager() = default;
-  virtual std::unique_ptr<SearchStopper> GetStopper(const GoParams& params,
-                                                    const NodeTree& tree) = 0;
+public:
+    virtual ~TimeManager() = default;
+    virtual std::unique_ptr<SearchStopper> GetStopper(const GoParams& params,
+            const NodeTree& tree) = 0;
 };
 
 }  // namespace lczero
