@@ -52,7 +52,7 @@ GRAMMAR = ([(x, x)
                 (r'"((?:[^"\\]|\\.)*)"', 'string'),
                 (r'\d+', 'number'),
                 (r'\w+', 'identifier'),
-            ])
+])
 
 
 class Lexer:
@@ -451,6 +451,7 @@ class ProtoMessageParser:
 
 class ProtoFileParser:
     '''Root grammar of .proto file'''
+
     def __init__(self, lexer):
         self.package = None
         self.objects = []
@@ -499,6 +500,7 @@ class ProtoFileParser:
 
 class Writer:
     '''A helper class for writing file line by line with indent.'''
+
     def __init__(self, fo):
         self.fo = fo
         self.indent = 0
