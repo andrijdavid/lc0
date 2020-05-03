@@ -5,7 +5,7 @@ pushd "$(dirname "$0")"
 set -e
 
 case $1 in
-  plain|debug|debugoptimized|release|minsize)
+  plain | debug | debugoptimized | release | minsize)
     BUILDTYPE=$1
     shift
     ;;
@@ -16,13 +16,11 @@ esac
 
 BUILDDIR=build/$BUILDTYPE
 
-if ! hash meson 2>/dev/null && [ -x "$HOME"/.local/bin/meson ]
-then
+if ! hash meson 2>/dev/null && [ -x "$HOME"/.local/bin/meson ]; then
   export PATH="$PATH:$HOME"/.local/bin
 fi
 
-if [ -f "$BUILDDIR"/build.ninja ]
-then
+if [ -f "$BUILDDIR"/build.ninja ]; then
   meson configure "$BUILDDIR" -Dbuildtype="$BUILDTYPE" -Dprefix="${INSTALL_PREFIX:-/usr/local}" "$@"
 else
   meson "$BUILDDIR" --buildtype "$BUILDTYPE" --prefix "${INSTALL_PREFIX:-/usr/local}" "$@"
@@ -32,8 +30,7 @@ cd "$BUILDDIR"
 
 NINJA=$(awk '/ninja/ {ninja=$4} END {print ninja}' meson-logs/meson-log.txt)
 
-if [ -n "$INSTALL_PREFIX" ]
-then
+if [ -n "$INSTALL_PREFIX" ]; then
   "$NINJA" install
 else
   "$NINJA"
