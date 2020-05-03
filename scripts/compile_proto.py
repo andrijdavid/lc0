@@ -42,19 +42,16 @@ RESERVED_WORDS = [
     "enum",
 ] + list(TYPES.keys())
 
-GRAMMAR = (
-    [(x, x) for x in RESERVED_WORDS]
-    + [("\\" + x, x) for x in "=;{}."]
-    + [
-        (r"/\*.*?\*/", None),  # /* Comment */
-        (r"//.*?$", None),  # // Comment
-        (r"\s+", None),  # Whitespace
-        (r"$", "EOF"),
-        (r'"((?:[^"\\]|\\.)*)"', "string"),
-        (r"\d+", "number"),
-        (r"\w+", "identifier"),
-    ]
-)
+GRAMMAR = ([(x, x)
+            for x in RESERVED_WORDS] + [("\\" + x, x) for x in "=;{}."] + [
+                (r"/\*.*?\*/", None),  # /* Comment */
+                (r"//.*?$", None),  # // Comment
+                (r"\s+", None),  # Whitespace
+                (r"$", "EOF"),
+                (r'"((?:[^"\\]|\\.)*)"', "string"),
+                (r"\d+", "number"),
+                (r"\w+", "identifier"),
+            ])
 
 
 class Lexer:
@@ -112,7 +109,8 @@ class Lexer:
         sys.stderr.write("%s:\n" % text)
         sys.stderr.write(self.text[line_start:line_end] + "\n")
         sys.stderr.write(" " * (self.cur_offset - line_start) + "^^^\n")
-        raise ValueError("Parse error: %s at offset %d." % (text, self.cur_offset))
+        raise ValueError("Parse error: %s at offset %d." %
+                         (text, self.cur_offset))
 
 
 def ReadIdentifierPath(lexer):
@@ -175,14 +173,12 @@ class ProtoTypeParser:
             return self.GetCppType()
 
     def IsVarintType(self):
-        return self.typetype == "enum" or (
-            self.typetype == "basic" and self.name in VARINT_TYPES
-        )
+        return self.typetype == "enum" or (self.typetype == "basic"
+                                           and self.name in VARINT_TYPES)
 
     def IsFixedType(self):
-        return self.typetype == "basic" and (
-            self.name in FIXED64_TYPES or self.name in FIXED32_TYPES
-        )
+        return self.typetype == "basic" and (self.name in FIXED64_TYPES
+                                             or self.name in FIXED32_TYPES)
 
     def IsBytesType(self):
         return self.typetype == "basic" and self.name in BYTES_TYPES
@@ -288,18 +284,15 @@ class ProtoFieldParser:
         cpp_type = self.type.GetCppType()
         if self.category == "repeated":
             if self.type.IsMessage():
-                w.Write(
-                    "%s* add_%s() { return &%s_.emplace_back(); }"
-                    % (cpp_type, name, name)
-                )
-            w.Write(
-                "const std::vector<%s>& %s() const { return %s_; }"
-                % (cpp_type, name, name)
-            )
+                w.Write("%s* add_%s() { return &%s_.emplace_back(); }" %
+                        (cpp_type, name, name))
+            w.Write("const std::vector<%s>& %s() const { return %s_; }" %
+                    (cpp_type, name, name))
         else:
             w.Write("bool has_%s() const { return has_%s_; }" % (name, name))
             if self.type.IsMessage():
-                w.Write("const %s& %s() const { return %s_; }" % (cpp_type, name, name))
+                w.Write("const %s& %s() const { return %s_; }" %
+                        (cpp_type, name, name))
                 w.Write("%s* mutable_%s() {" % (cpp_type, name))
                 w.Indent()
                 w.Write("has_%s_ = true;" % (name))
@@ -307,7 +300,8 @@ class ProtoFieldParser:
                 w.Unindent()
                 w.Write("}")
             else:
-                w.Write("%s %s() const { return %s_; }" % (cpp_type, name, name))
+                w.Write("%s %s() const { return %s_; }" %
+                        (cpp_type, name, name))
                 w.Write("void set_%s(%s val) {" % (name, cpp_type))
                 w.Indent()
                 w.Write("has_%s_ = true;" % name)
@@ -374,11 +368,13 @@ class ProtoMessageParser:
             if token == "}":
                 break
             elif token == "message":
-                self.types.append(ProtoMessageParser(lexer, [self.types, *type_stack]))
+                self.types.append(
+                    ProtoMessageParser(lexer, [self.types, *type_stack]))
             elif token == "enum":
                 self.types.append(ProtoEnumParser(lexer))
             elif token in ["repeated", "optional", "required"]:
-                self.fields.append(ProtoFieldParser(lexer, [self.types, *type_stack]))
+                self.fields.append(
+                    ProtoFieldParser(lexer, [self.types, *type_stack]))
             else:
                 lexer.Error("Expected field or type")
         lexer.Consume("}")
@@ -409,10 +405,8 @@ class ProtoMessageParser:
             2: "std::string_view",
             5: "std::uint32_t",
         }
-        w.Write(
-            "void %s(int field_id, %s val) override {"
-            % (fname[wire_id], tname[wire_id])
-        )
+        w.Write("void %s(int field_id, %s val) override {" %
+                (fname[wire_id], tname[wire_id]))
         w.Indent()
         w.Write("switch (field_id) {")
         w.Indent()
