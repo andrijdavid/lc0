@@ -14,29 +14,29 @@ case $1 in
     ;;
 esac
 
-BUILDDIR=build/${BUILDTYPE}
+BUILDDIR=build/$BUILDTYPE
 
-if ! hash meson 2>/dev/null && [ -x ${HOME}/.local/bin/meson ]
+if ! hash meson 2>/dev/null && [ -x "$HOME"/.local/bin/meson ]
 then
-  export PATH=${PATH}:${HOME}/.local/bin
+  export PATH="$PATH:$HOME"/.local/bin
 fi
 
-if [ -f ${BUILDDIR}/build.ninja ]
+if [ -f "$BUILDDIR"/build.ninja ]
 then
-  meson configure ${BUILDDIR} -Dbuildtype=${BUILDTYPE} -Dprefix=${INSTALL_PREFIX:-/usr/local} "$@"
+  meson configure "$BUILDDIR" -Dbuildtype="$BUILDTYPE" -Dprefix="${INSTALL_PREFIX:-/usr/local}" "$@"
 else
-  meson ${BUILDDIR} --buildtype ${BUILDTYPE} --prefix ${INSTALL_PREFIX:-/usr/local} "$@"
+  meson "$BUILDDIR" --buildtype "$BUILDTYPE" --prefix "${INSTALL_PREFIX:-/usr/local}" "$@"
 fi
 
-cd ${BUILDDIR}
+cd "$BUILDDIR"
 
 NINJA=$(awk '/ninja/ {ninja=$4} END {print ninja}' meson-logs/meson-log.txt)
 
-if [ -n "${INSTALL_PREFIX}" ]
+if [ -n "$INSTALL_PREFIX" ]
 then
-  ${NINJA} install
+  "$NINJA" install
 else
-  ${NINJA}
+  "$NINJA"
 fi
 
 popd
