@@ -52,49 +52,49 @@ const char* kAutoDiscover = "<autodiscover>";
 const char* kEmbed = "<built in>";
 
 NetworkFactory* NetworkFactory::Get() {
-    static NetworkFactory factory;
-    return &factory;
+  static NetworkFactory factory;
+  return &factory;
 }
 
 NetworkFactory::Register::Register(const std::string& name, FactoryFunc factory,
                                    int priority) {
-    NetworkFactory::Get()->RegisterNetwork(name, factory, priority);
+  NetworkFactory::Get()->RegisterNetwork(name, factory, priority);
 }
 
 void NetworkFactory::PopulateOptions(OptionsParser* options) {
 #if defined(EMBED)
-    options->Add<StringOption>(NetworkFactory::kWeightsId) = kEmbed;
+  options->Add<StringOption>(NetworkFactory::kWeightsId) = kEmbed;
 #else
-    options->Add<StringOption>(NetworkFactory::kWeightsId) = kAutoDiscover;
+  options->Add<StringOption>(NetworkFactory::kWeightsId) = kAutoDiscover;
 #endif
-    const auto backends = NetworkFactory::Get()->GetBackendsList();
-    options->Add<ChoiceOption>(NetworkFactory::kBackendId, backends) =
-        backends.empty() ? "<none>" : backends[0];
-    options->Add<StringOption>(NetworkFactory::kBackendOptionsId);
+  const auto backends = NetworkFactory::Get()->GetBackendsList();
+  options->Add<ChoiceOption>(NetworkFactory::kBackendId, backends) =
+      backends.empty() ? "<none>" : backends[0];
+  options->Add<StringOption>(NetworkFactory::kBackendOptionsId);
 }
 
 void NetworkFactory::RegisterNetwork(const std::string& name,
                                      FactoryFunc factory, int priority) {
-    factories_.emplace_back(name, factory, priority);
-    std::sort(factories_.begin(), factories_.end());
+  factories_.emplace_back(name, factory, priority);
+  std::sort(factories_.begin(), factories_.end());
 }
 
 std::vector<std::string> NetworkFactory::GetBackendsList() const {
-    std::vector<std::string> result;
-    for (const auto& x : factories_) result.emplace_back(x.name);
-    return result;
+  std::vector<std::string> result;
+  for (const auto& x : factories_) result.emplace_back(x.name);
+  return result;
 }
 
 std::unique_ptr<Network> NetworkFactory::Create(
     const std::string& network, const std::optional<WeightsFile>& weights,
     const OptionsDict& options) {
-    CERR << "Creating backend [" << network << "]...";
-    for (const auto& factory : factories_) {
-        if (factory.name == network) {
-            return factory.factory(weights, options);
-        }
+  CERR << "Creating backend [" << network << "]...";
+  for (const auto& factory : factories_) {
+    if (factory.name == network) {
+      return factory.factory(weights, options);
     }
-    throw Exception("Unknown backend: " + network);
+  }
+  throw Exception("Unknown backend: " + network);
 }
 
 NetworkFactory::BackendConfiguration::BackendConfiguration(
@@ -105,35 +105,35 @@ NetworkFactory::BackendConfiguration::BackendConfiguration(
 
 bool NetworkFactory::BackendConfiguration::operator==(
     const BackendConfiguration& other) const {
-    return (weights_path == other.weights_path && backend == other.backend &&
-            backend_options == other.backend_options);
+  return (weights_path == other.weights_path && backend == other.backend &&
+          backend_options == other.backend_options);
 }
 
 std::unique_ptr<Network> NetworkFactory::LoadNetwork(
     const OptionsDict& options) {
-    std::string net_path = options.Get<std::string>(kWeightsId);
-    const std::string backend = options.Get<std::string>(kBackendId);
-    const std::string backend_options =
-        options.Get<std::string>(kBackendOptionsId);
+  std::string net_path = options.Get<std::string>(kWeightsId);
+  const std::string backend = options.Get<std::string>(kBackendId);
+  const std::string backend_options =
+      options.Get<std::string>(kBackendOptionsId);
 
-    if (net_path == kAutoDiscover) {
-        net_path = DiscoverWeightsFile();
-    } else if (net_path == kEmbed) {
-        net_path = CommandLine::BinaryName();
-    } else {
-        CERR << "Loading weights file from: " << net_path;
-    }
-    std::optional<WeightsFile> weights;
-    if (!net_path.empty()) {
-        weights = LoadWeightsFromFile(net_path);
-    }
+  if (net_path == kAutoDiscover) {
+    net_path = DiscoverWeightsFile();
+  } else if (net_path == kEmbed) {
+    net_path = CommandLine::BinaryName();
+  } else {
+    CERR << "Loading weights file from: " << net_path;
+  }
+  std::optional<WeightsFile> weights;
+  if (!net_path.empty()) {
+    weights = LoadWeightsFromFile(net_path);
+  }
 
-    OptionsDict network_options(&options);
-    network_options.AddSubdictFromString(backend_options);
+  OptionsDict network_options(&options);
+  network_options.AddSubdictFromString(backend_options);
 
-    auto ptr = NetworkFactory::Get()->Create(backend, weights, network_options);
-    network_options.CheckAllOptionsRead(backend);
-    return ptr;
+  auto ptr = NetworkFactory::Get()->Create(backend, weights, network_options);
+  network_options.CheckAllOptionsRead(backend);
+  return ptr;
 }
 
 }  // namespace lczero

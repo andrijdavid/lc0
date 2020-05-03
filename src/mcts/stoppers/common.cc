@@ -72,35 +72,35 @@ const OptionId kNodesAsPlayoutsId{
 }  // namespace
 
 void PopulateCommonStopperOptions(RunType for_what, OptionsParser* options) {
-    options->Add<IntOption>(kKLDGainAverageIntervalId, 1, 10000000) = 100;
-    options->Add<FloatOption>(kMinimumKLDGainPerNodeId, 0.0f, 1.0f) = 0.0f;
-    options->Add<FloatOption>(kSmartPruningFactorId, 0.0f, 10.0f) =
-        (for_what == RunType::kUci ? 1.33f : 0.00f);
-    options->Add<IntOption>(kMinimumSmartPruningBatchesId, 0, 10000) = 0;
-    options->Add<BoolOption>(kNodesAsPlayoutsId) = false;
+  options->Add<IntOption>(kKLDGainAverageIntervalId, 1, 10000000) = 100;
+  options->Add<FloatOption>(kMinimumKLDGainPerNodeId, 0.0f, 1.0f) = 0.0f;
+  options->Add<FloatOption>(kSmartPruningFactorId, 0.0f, 10.0f) =
+      (for_what == RunType::kUci ? 1.33f : 0.00f);
+  options->Add<IntOption>(kMinimumSmartPruningBatchesId, 0, 10000) = 0;
+  options->Add<BoolOption>(kNodesAsPlayoutsId) = false;
 
-    if (for_what == RunType::kUci) {
-        options->Add<IntOption>(kRamLimitMbId, 0, 100000000) = 0;
-        options->HideOption(kNodesAsPlayoutsId);
-    }
+  if (for_what == RunType::kUci) {
+    options->Add<IntOption>(kRamLimitMbId, 0, 100000000) = 0;
+    options->HideOption(kNodesAsPlayoutsId);
+  }
 }
 
 // Parameters needed for selfplay and uci, but not benchmark nor infinite mode.
 void PopulateIntrinsicStoppers(ChainedSearchStopper* stopper,
                                const OptionsDict& options) {
-    // KLD gain.
-    const auto min_kld_gain = options.Get<float>(kMinimumKLDGainPerNodeId);
-    if (min_kld_gain > 0.0f) {
-        stopper->AddStopper(std::make_unique<KldGainStopper>(
-                                min_kld_gain, options.Get<int>(kKLDGainAverageIntervalId)));
-    }
+  // KLD gain.
+  const auto min_kld_gain = options.Get<float>(kMinimumKLDGainPerNodeId);
+  if (min_kld_gain > 0.0f) {
+    stopper->AddStopper(std::make_unique<KldGainStopper>(
+        min_kld_gain, options.Get<int>(kKLDGainAverageIntervalId)));
+  }
 
-    // Should be last in the chain.
-    const auto smart_pruning_factor = options.Get<float>(kSmartPruningFactorId);
-    if (smart_pruning_factor > 0.0f) {
-        stopper->AddStopper(std::make_unique<SmartPruningStopper>(
-                                smart_pruning_factor, options.Get<int>(kMinimumSmartPruningBatchesId)));
-    }
+  // Should be last in the chain.
+  const auto smart_pruning_factor = options.Get<float>(kSmartPruningFactorId);
+  if (smart_pruning_factor > 0.0f) {
+    stopper->AddStopper(std::make_unique<SmartPruningStopper>(
+        smart_pruning_factor, options.Get<int>(kMinimumSmartPruningBatchesId)));
+  }
 }
 
 namespace {
@@ -108,60 +108,60 @@ namespace {
 void PopulateCommonUciStoppers(ChainedSearchStopper* stopper,
                                const OptionsDict& options,
                                const GoParams& params, int64_t move_overhead) {
-    const bool infinite = params.infinite || params.ponder;
+  const bool infinite = params.infinite || params.ponder;
 
-    // RAM limit watching stopper.
-    const auto cache_size_mb = options.Get<int>(kNNCacheSizeId);
-    const int ram_limit = options.Get<int>(kRamLimitMbId);
-    if (ram_limit) {
-        stopper->AddStopper(
-            std::make_unique<MemoryWatchingStopper>(cache_size_mb, ram_limit));
+  // RAM limit watching stopper.
+  const auto cache_size_mb = options.Get<int>(kNNCacheSizeId);
+  const int ram_limit = options.Get<int>(kRamLimitMbId);
+  if (ram_limit) {
+    stopper->AddStopper(
+        std::make_unique<MemoryWatchingStopper>(cache_size_mb, ram_limit));
+  }
+
+  // "go nodes" stopper.
+  if (params.nodes) {
+    if (options.Get<bool>(kNodesAsPlayoutsId)) {
+      stopper->AddStopper(std::make_unique<PlayoutsStopper>(*params.nodes));
+    } else {
+      stopper->AddStopper(std::make_unique<VisitsStopper>(*params.nodes));
     }
+  }
 
-    // "go nodes" stopper.
-    if (params.nodes) {
-        if (options.Get<bool>(kNodesAsPlayoutsId)) {
-            stopper->AddStopper(std::make_unique<PlayoutsStopper>(*params.nodes));
-        } else {
-            stopper->AddStopper(std::make_unique<VisitsStopper>(*params.nodes));
-        }
-    }
+  // "go movetime" stopper.
+  if (params.movetime && !infinite) {
+    stopper->AddStopper(
+        std::make_unique<TimeLimitStopper>(*params.movetime - move_overhead));
+  }
 
-    // "go movetime" stopper.
-    if (params.movetime && !infinite) {
-        stopper->AddStopper(
-            std::make_unique<TimeLimitStopper>(*params.movetime - move_overhead));
-    }
+  // "go depth" stopper.
+  if (params.depth) {
+    stopper->AddStopper(std::make_unique<DepthStopper>(*params.depth));
+  }
 
-    // "go depth" stopper.
-    if (params.depth) {
-        stopper->AddStopper(std::make_unique<DepthStopper>(*params.depth));
-    }
-
-    // Add internal search tree stoppers when we want to automatically stop.
-    if (!infinite) PopulateIntrinsicStoppers(stopper, options);
+  // Add internal search tree stoppers when we want to automatically stop.
+  if (!infinite) PopulateIntrinsicStoppers(stopper, options);
 }
 
 class CommonTimeManager : public TimeManager {
-public:
-    CommonTimeManager(std::unique_ptr<TimeManager> child_mgr,
-                      const OptionsDict& options, int64_t move_overhead)
-        : child_mgr_(std::move(child_mgr)),
-          options_(options),
-          move_overhead_(move_overhead) {}
+ public:
+  CommonTimeManager(std::unique_ptr<TimeManager> child_mgr,
+                    const OptionsDict& options, int64_t move_overhead)
+      : child_mgr_(std::move(child_mgr)),
+        options_(options),
+        move_overhead_(move_overhead) {}
 
-private:
-    std::unique_ptr<SearchStopper> GetStopper(const GoParams& params,
-            const NodeTree& tree) override {
-        auto result = std::make_unique<ChainedSearchStopper>();
-        if (child_mgr_) result->AddStopper(child_mgr_->GetStopper(params, tree));
-        PopulateCommonUciStoppers(result.get(), options_, params, move_overhead_);
-        return result;
-    }
+ private:
+  std::unique_ptr<SearchStopper> GetStopper(const GoParams& params,
+                                            const NodeTree& tree) override {
+    auto result = std::make_unique<ChainedSearchStopper>();
+    if (child_mgr_) result->AddStopper(child_mgr_->GetStopper(params, tree));
+    PopulateCommonUciStoppers(result.get(), options_, params, move_overhead_);
+    return result;
+  }
 
-    const std::unique_ptr<TimeManager> child_mgr_;
-    const OptionsDict& options_;
-    const int64_t move_overhead_;
+  const std::unique_ptr<TimeManager> child_mgr_;
+  const OptionsDict& options_;
+  const int64_t move_overhead_;
 };
 
 }  // namespace
@@ -169,8 +169,8 @@ private:
 std::unique_ptr<TimeManager> MakeCommonTimeManager(
     std::unique_ptr<TimeManager> child_manager, const OptionsDict& options,
     int64_t move_overhead) {
-    return std::make_unique<CommonTimeManager>(std::move(child_manager), options,
-            move_overhead);
+  return std::make_unique<CommonTimeManager>(std::move(child_manager), options,
+                                             move_overhead);
 }
 
 }  // namespace lczero

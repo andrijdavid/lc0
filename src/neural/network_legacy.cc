@@ -44,9 +44,9 @@ LegacyWeights::LegacyWeights(const pblczero::Weights& weights)
       ip1_mov_b(LayerAdapter(weights.ip1_mov_b()).as_vector()),
       ip2_mov_w(LayerAdapter(weights.ip2_mov_w()).as_vector()),
       ip2_mov_b(LayerAdapter(weights.ip2_mov_b()).as_vector()) {
-    for (const auto& res : weights.residual()) {
-        residual.emplace_back(res);
-    }
+  for (const auto& res : weights.residual()) {
+    residual.emplace_back(res);
+  }
 }
 
 LegacyWeights::SEunit::SEunit(const pblczero::Weights::SEunit& se)
@@ -68,53 +68,53 @@ LegacyWeights::ConvBlock::ConvBlock(const pblczero::Weights::ConvBlock& block)
       bn_betas(LayerAdapter(block.bn_betas()).as_vector()),
       bn_means(LayerAdapter(block.bn_means()).as_vector()),
       bn_stddivs(LayerAdapter(block.bn_stddivs()).as_vector()) {
-    if (weights.size() == 0) {
-        // Empty ConvBlock.
-        return;
+  if (weights.size() == 0) {
+    // Empty ConvBlock.
+    return;
+  }
+
+  if (bn_betas.size() == 0) {
+    // Old net without gamma and beta.
+    for (auto i = size_t{0}; i < bn_means.size(); i++) {
+      bn_betas.emplace_back(0.0f);
+      bn_gammas.emplace_back(1.0f);
+    }
+  }
+  if (biases.size() == 0) {
+    for (auto i = size_t{0}; i < bn_means.size(); i++) {
+      biases.emplace_back(0.0f);
+    }
+  }
+
+  if (bn_means.size() == 0) {
+    // No batch norm.
+    return;
+  }
+
+  // Fold batch norm into weights and biases.
+  // Variance to gamma.
+  for (auto i = size_t{0}; i < bn_stddivs.size(); i++) {
+    bn_gammas[i] *= 1.0f / std::sqrt(bn_stddivs[i] + kEpsilon);
+    bn_means[i] -= biases[i];
+  }
+
+  auto outputs = biases.size();
+
+  // We can treat the [inputs, filter_size, filter_size] dimensions as one.
+  auto inputs = weights.size() / outputs;
+
+  for (auto o = size_t{0}; o < outputs; o++) {
+    for (auto c = size_t{0}; c < inputs; c++) {
+      weights[o * inputs + c] *= bn_gammas[o];
     }
 
-    if (bn_betas.size() == 0) {
-        // Old net without gamma and beta.
-        for (auto i = size_t{0}; i < bn_means.size(); i++) {
-            bn_betas.emplace_back(0.0f);
-            bn_gammas.emplace_back(1.0f);
-        }
-    }
-    if (biases.size() == 0) {
-        for (auto i = size_t{0}; i < bn_means.size(); i++) {
-            biases.emplace_back(0.0f);
-        }
-    }
+    biases[o] = -bn_gammas[o] * bn_means[o] + bn_betas[o];
+  }
 
-    if (bn_means.size() == 0) {
-        // No batch norm.
-        return;
-    }
-
-    // Fold batch norm into weights and biases.
-    // Variance to gamma.
-    for (auto i = size_t{0}; i < bn_stddivs.size(); i++) {
-        bn_gammas[i] *= 1.0f / std::sqrt(bn_stddivs[i] + kEpsilon);
-        bn_means[i] -= biases[i];
-    }
-
-    auto outputs = biases.size();
-
-    // We can treat the [inputs, filter_size, filter_size] dimensions as one.
-    auto inputs = weights.size() / outputs;
-
-    for (auto o = size_t{0}; o < outputs; o++) {
-        for (auto c = size_t{0}; c < inputs; c++) {
-            weights[o * inputs + c] *= bn_gammas[o];
-        }
-
-        biases[o] = -bn_gammas[o] * bn_means[o] + bn_betas[o];
-    }
-
-    // Batch norm weights are not needed anymore.
-    bn_stddivs.clear();
-    bn_means.clear();
-    bn_betas.clear();
-    bn_gammas.clear();
+  // Batch norm weights are not needed anymore.
+  bn_stddivs.clear();
+  bn_means.clear();
+  bn_betas.clear();
+  bn_gammas.clear();
 }
 }  // namespace lczero

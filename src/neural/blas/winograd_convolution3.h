@@ -36,40 +36,40 @@ namespace lczero {
 // Convolution 3x3 using the Winograd algorithm
 template <bool use_eigen>
 class WinogradConvolution3 {
-public:
-    // The instance will allocate memory resources for the
-    // largest batch size, and the largest input and output
-    // layers.
-    WinogradConvolution3(const size_t max_batch_size,
-                         const size_t max_input_layers,
-                         const size_t max_output_layers);
+ public:
+  // The instance will allocate memory resources for the
+  // largest batch size, and the largest input and output
+  // layers.
+  WinogradConvolution3(const size_t max_batch_size,
+                       const size_t max_input_layers,
+                       const size_t max_output_layers);
 
-    // Forward inference, batched.
-    void Forward(const size_t batch_size, const size_t input_channels,
-                 const size_t output_channels, const float* input,
-                 const float* weights, float* output);
+  // Forward inference, batched.
+  void Forward(const size_t batch_size, const size_t input_channels,
+               const size_t output_channels, const float* input,
+               const float* weights, float* output);
 
-private:
-    void TransformIn(const size_t batch_size, const float* input,
-                     const size_t channels);
+ private:
+  void TransformIn(const size_t batch_size, const float* input,
+                   const size_t channels);
 
-    void Sgemm(const size_t batch_size, const float* weights,
-               const size_t input_channels, const size_t output_channels);
+  void Sgemm(const size_t batch_size, const float* weights,
+             const size_t input_channels, const size_t output_channels);
 
-    void TransformOut(const size_t batch_size, float* output,
-                      const size_t channels);
+  void TransformOut(const size_t batch_size, float* output,
+                    const size_t channels);
 
-    static constexpr auto kWidth = 8;
-    static constexpr auto kHeight = 8;
-    static constexpr auto kSquares = kWidth * kHeight;
+  static constexpr auto kWidth = 8;
+  static constexpr auto kHeight = 8;
+  static constexpr auto kSquares = kWidth * kHeight;
 
-    static constexpr auto kWtiles = (kWidth + 1) / 2;  // 4
-    static constexpr auto kTiles = kWtiles * kWtiles;  // 16
+  static constexpr auto kWtiles = (kWidth + 1) / 2;  // 4
+  static constexpr auto kTiles = kWtiles * kWtiles;  // 16
 
-    static constexpr auto kWinogradAlpha = 4;
-    static constexpr auto kWinogradTile = kWinogradAlpha * kWinogradAlpha;
+  static constexpr auto kWinogradAlpha = 4;
+  static constexpr auto kWinogradTile = kWinogradAlpha * kWinogradAlpha;
 
-    std::vector<float> V_;
-    std::vector<float> M_;
+  std::vector<float> V_;
+  std::vector<float> M_;
 };
 }  // namespace lczero

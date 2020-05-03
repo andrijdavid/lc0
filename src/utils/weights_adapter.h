@@ -33,65 +33,57 @@
 namespace lczero {
 
 class LayerAdapter {
-public:
-    class Iterator
-        : public std::iterator<std::random_access_iterator_tag, float> {
-    public:
-        Iterator() = default;
-        Iterator(const Iterator& other) = default;
+ public:
+  class Iterator
+      : public std::iterator<std::random_access_iterator_tag, float> {
+   public:
+    Iterator() = default;
+    Iterator(const Iterator& other) = default;
 
-        float operator*() const;
-        float operator[](size_t idx) const;
-        bool operator==(const LayerAdapter::Iterator& other) const {
-            return data_ == other.data_;
-        }
-        bool operator!=(const LayerAdapter::Iterator& other) const {
-            return data_ != other.data_;
-        }
-        Iterator& operator++() {
-            ++data_;
-            return *this;
-        }
-        Iterator& operator--() {
-            --data_;
-            return *this;
-        }
-        ptrdiff_t operator-(const Iterator& other) const {
-            return data_ - other.data_;
-        }
-
-        // TODO(crem) implement other iterator functions when they are needed.
-
-    private:
-        friend class LayerAdapter;
-        Iterator(const LayerAdapter* adapter, const uint16_t* ptr)
-            : adapter_(adapter), data_(ptr) {}
-        static float ExtractValue(const uint16_t* ptr, const LayerAdapter* adapter);
-
-        const LayerAdapter* adapter_ = nullptr;
-        const uint16_t* data_ = nullptr;
-    };
-
-    LayerAdapter(const pblczero::Weights::Layer& layer);
-    std::vector<float> as_vector() const;
-    size_t size() const {
-        return size_;
+    float operator*() const;
+    float operator[](size_t idx) const;
+    bool operator==(const LayerAdapter::Iterator& other) const {
+      return data_ == other.data_;
     }
-    float operator[](size_t idx) const {
-        return begin()[idx];
+    bool operator!=(const LayerAdapter::Iterator& other) const {
+      return data_ != other.data_;
     }
-    Iterator begin() const {
-        return {this, data_};
+    Iterator& operator++() {
+      ++data_;
+      return *this;
     }
-    Iterator end() const {
-        return {this, data_ + size_};
+    Iterator& operator--() {
+      --data_;
+      return *this;
+    }
+    ptrdiff_t operator-(const Iterator& other) const {
+      return data_ - other.data_;
     }
 
-private:
+    // TODO(crem) implement other iterator functions when they are needed.
+
+   private:
+    friend class LayerAdapter;
+    Iterator(const LayerAdapter* adapter, const uint16_t* ptr)
+        : adapter_(adapter), data_(ptr) {}
+    static float ExtractValue(const uint16_t* ptr, const LayerAdapter* adapter);
+
+    const LayerAdapter* adapter_ = nullptr;
     const uint16_t* data_ = nullptr;
-    const size_t size_ = 0;
-    const float min_;
-    const float range_;
+  };
+
+  LayerAdapter(const pblczero::Weights::Layer& layer);
+  std::vector<float> as_vector() const;
+  size_t size() const { return size_; }
+  float operator[](size_t idx) const { return begin()[idx]; }
+  Iterator begin() const { return {this, data_}; }
+  Iterator end() const { return {this, data_ + size_}; }
+
+ private:
+  const uint16_t* data_ = nullptr;
+  const size_t size_ = 0;
+  const float min_;
+  const float range_;
 };
 
 }  // namespace lczero

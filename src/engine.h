@@ -41,98 +41,98 @@
 namespace lczero {
 
 struct CurrentPosition {
-    std::string fen;
-    std::vector<std::string> moves;
+  std::string fen;
+  std::vector<std::string> moves;
 };
 
 class EngineController {
-public:
-    EngineController(std::unique_ptr<UciResponder> uci_responder,
-                     const OptionsDict& options);
+ public:
+  EngineController(std::unique_ptr<UciResponder> uci_responder,
+                   const OptionsDict& options);
 
-    ~EngineController() {
-        // Make sure search is destructed first, and it still may be running in
-        // a separate thread.
-        search_.reset();
-    }
+  ~EngineController() {
+    // Make sure search is destructed first, and it still may be running in
+    // a separate thread.
+    search_.reset();
+  }
 
-    void PopulateOptions(OptionsParser* options);
+  void PopulateOptions(OptionsParser* options);
 
-    // Blocks.
-    void EnsureReady();
+  // Blocks.
+  void EnsureReady();
 
-    // Must not block.
-    void NewGame();
+  // Must not block.
+  void NewGame();
 
-    // Blocks.
-    void SetPosition(const std::string& fen,
+  // Blocks.
+  void SetPosition(const std::string& fen,
+                   const std::vector<std::string>& moves);
+
+  // Must not block.
+  void Go(const GoParams& params);
+  void PonderHit();
+  // Must not block.
+  void Stop();
+
+ private:
+  void UpdateFromUciOptions();
+
+  void SetupPosition(const std::string& fen,
                      const std::vector<std::string>& moves);
+  void ResetMoveTimer();
+  void CreateFreshTimeManager();
 
-    // Must not block.
-    void Go(const GoParams& params);
-    void PonderHit();
-    // Must not block.
-    void Stop();
+  const OptionsDict& options_;
 
-private:
-    void UpdateFromUciOptions();
+  std::unique_ptr<UciResponder> uci_responder_;
 
-    void SetupPosition(const std::string& fen,
-                       const std::vector<std::string>& moves);
-    void ResetMoveTimer();
-    void CreateFreshTimeManager();
+  // Locked means that there is some work to wait before responding readyok.
+  RpSharedMutex busy_mutex_;
+  using SharedLock = std::shared_lock<RpSharedMutex>;
 
-    const OptionsDict& options_;
+  std::unique_ptr<TimeManager> time_manager_;
+  std::unique_ptr<Search> search_;
+  std::unique_ptr<NodeTree> tree_;
+  std::unique_ptr<SyzygyTablebase> syzygy_tb_;
+  std::unique_ptr<Network> network_;
+  NNCache cache_;
 
-    std::unique_ptr<UciResponder> uci_responder_;
+  // Store current TB and network settings to track when they change so that
+  // they are reloaded.
+  std::string tb_paths_;
+  NetworkFactory::BackendConfiguration network_configuration_;
 
-    // Locked means that there is some work to wait before responding readyok.
-    RpSharedMutex busy_mutex_;
-    using SharedLock = std::shared_lock<RpSharedMutex>;
+  // The current position as given with SetPosition. For normal (ie. non-ponder)
+  // search, the tree is set up with this position, however, during ponder we
+  // actually search the position one move earlier.
+  std::optional<CurrentPosition> current_position_;
+  GoParams go_params_;
 
-    std::unique_ptr<TimeManager> time_manager_;
-    std::unique_ptr<Search> search_;
-    std::unique_ptr<NodeTree> tree_;
-    std::unique_ptr<SyzygyTablebase> syzygy_tb_;
-    std::unique_ptr<Network> network_;
-    NNCache cache_;
+  std::optional<std::chrono::steady_clock::time_point> move_start_time_;
 
-    // Store current TB and network settings to track when they change so that
-    // they are reloaded.
-    std::string tb_paths_;
-    NetworkFactory::BackendConfiguration network_configuration_;
-
-    // The current position as given with SetPosition. For normal (ie. non-ponder)
-    // search, the tree is set up with this position, however, during ponder we
-    // actually search the position one move earlier.
-    std::optional<CurrentPosition> current_position_;
-    GoParams go_params_;
-
-    std::optional<std::chrono::steady_clock::time_point> move_start_time_;
-
-    // If true we can reset move_start_time_ in "Go".
-    bool strict_uci_timing_;
+  // If true we can reset move_start_time_ in "Go".
+  bool strict_uci_timing_;
 };
 
 class EngineLoop : public UciLoop {
-public:
-    EngineLoop();
+ public:
+  EngineLoop();
 
-    void RunLoop() override;
-    void CmdUci() override;
-    void CmdIsReady() override;
-    void CmdSetOption(const std::string& name, const std::string& value,
-                      const std::string& context) override;
-    void CmdUciNewGame() override;
-    void CmdPosition(const std::string& position,
-                     const std::vector<std::string>& moves) override;
-    void CmdGo(const GoParams& params) override;
-    void CmdPonderHit() override;
-    void CmdStop() override;
+  void RunLoop() override;
+  void CmdUci() override;
+  void CmdIsReady() override;
+  void CmdSetOption(const std::string& name, const std::string& value,
+                    const std::string& context) override;
+  void CmdUciNewGame() override;
+  void CmdPosition(const std::string& position,
+                   const std::vector<std::string>& moves) override;
+  void CmdGo(const GoParams& params) override;
+  void CmdPonderHit() override;
+  void CmdStop() override;
 
-private:
-    OptionsParser options_;
-    EngineController engine_;
+ private:
+  OptionsParser options_;
+  EngineController engine_;
 };
 
 }  // namespace lczero

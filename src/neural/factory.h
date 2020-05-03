@@ -31,92 +31,94 @@
 #include <optional>
 #include <string>
 
-#include "neural/network.h"
 #include "neural/loader.h"
+#include "neural/network.h"
 #include "utils/optionsdict.h"
 #include "utils/optionsparser.h"
 
 namespace lczero {
 
 class NetworkFactory {
-public:
-    using FactoryFunc = std::function<std::unique_ptr<Network>(
-                            const std::optional<WeightsFile>&, const OptionsDict&)>;
+ public:
+  using FactoryFunc = std::function<std::unique_ptr<Network>(
+      const std::optional<WeightsFile>&, const OptionsDict&)>;
 
-    static NetworkFactory* Get();
+  static NetworkFactory* Get();
 
-    // Registers network so it can be created by name.
-    // @name -- name
-    // @options -- options to pass to the network
-    // @priority -- how high should be the network in the list. The network with
-    //              the highest priority is the default.
-    class Register {
-    public:
-        Register(const std::string& name, FactoryFunc factory, int priority = 0);
-    };
+  // Registers network so it can be created by name.
+  // @name -- name
+  // @options -- options to pass to the network
+  // @priority -- how high should be the network in the list. The network with
+  //              the highest priority is the default.
+  class Register {
+   public:
+    Register(const std::string& name, FactoryFunc factory, int priority = 0);
+  };
 
-    // Add the network/backend parameters to the options dictionary.
-    static void PopulateOptions(OptionsParser* options);
+  // Add the network/backend parameters to the options dictionary.
+  static void PopulateOptions(OptionsParser* options);
 
-    // Returns list of backend names, sorted by priority (higher priority first).
-    std::vector<std::string> GetBackendsList() const;
+  // Returns list of backend names, sorted by priority (higher priority first).
+  std::vector<std::string> GetBackendsList() const;
 
-    // Creates a backend given name and config.
-    std::unique_ptr<Network> Create(const std::string& network,
-                                    const std::optional<WeightsFile>&,
-                                    const OptionsDict& options);
+  // Creates a backend given name and config.
+  std::unique_ptr<Network> Create(const std::string& network,
+                                  const std::optional<WeightsFile>&,
+                                  const OptionsDict& options);
 
-    // Helper function to load the network from the options. Returns nullptr
-    // if no network options changed since the previous call.
-    static std::unique_ptr<Network> LoadNetwork(const OptionsDict& options);
+  // Helper function to load the network from the options. Returns nullptr
+  // if no network options changed since the previous call.
+  static std::unique_ptr<Network> LoadNetwork(const OptionsDict& options);
 
-    // Parameter IDs.
-    static const OptionId kWeightsId;
-    static const OptionId kBackendId;
-    static const OptionId kBackendOptionsId;
+  // Parameter IDs.
+  static const OptionId kWeightsId;
+  static const OptionId kBackendId;
+  static const OptionId kBackendOptionsId;
 
-    struct BackendConfiguration {
-        BackendConfiguration() = default;
-        BackendConfiguration(const OptionsDict& options);
-        std::string weights_path;
-        std::string backend;
-        std::string backend_options;
-        bool operator==(const BackendConfiguration& other) const;
-        bool operator!=(const BackendConfiguration& other) const {
-            return !operator==(other);
-        }
-    };
+  struct BackendConfiguration {
+    BackendConfiguration() = default;
+    BackendConfiguration(const OptionsDict& options);
+    std::string weights_path;
+    std::string backend;
+    std::string backend_options;
+    bool operator==(const BackendConfiguration& other) const;
+    bool operator!=(const BackendConfiguration& other) const {
+      return !operator==(other);
+    }
+  };
 
-private:
-    void RegisterNetwork(const std::string& name, FactoryFunc factory,
-                         int priority);
+ private:
+  void RegisterNetwork(const std::string& name, FactoryFunc factory,
+                       int priority);
 
-    NetworkFactory() {}
+  NetworkFactory() {}
 
-    struct Factory {
-        Factory(const std::string& name, FactoryFunc factory, int priority)
-            : name(name), factory(factory), priority(priority) {}
+  struct Factory {
+    Factory(const std::string& name, FactoryFunc factory, int priority)
+        : name(name), factory(factory), priority(priority) {}
 
-        bool operator<(const Factory& other) const {
-            if (priority != other.priority) return priority > other.priority;
-            return name < other.name;
-        }
+    bool operator<(const Factory& other) const {
+      if (priority != other.priority) return priority > other.priority;
+      return name < other.name;
+    }
 
-        std::string name;
-        FactoryFunc factory;
-        int priority;
-    };
+    std::string name;
+    FactoryFunc factory;
+    int priority;
+  };
 
-    std::vector<Factory> factories_;
-    friend class Register;
+  std::vector<Factory> factories_;
+  friend class Register;
 };
 
-#define REGISTER_NETWORK_WITH_COUNTER2(name, func, priority, counter)       \
-  namespace {                                                               \
-  static NetworkFactory::Register regH38fhs##counter(                       \
-      name, [](const std::optional<WeightsFile>& w, const OptionsDict& o) { \
-        return func(w, o);                                                  \
-      }, priority);                                                         \
+#define REGISTER_NETWORK_WITH_COUNTER2(name, func, priority, counter) \
+  namespace {                                                         \
+  static NetworkFactory::Register regH38fhs##counter(                 \
+      name,                                                           \
+      [](const std::optional<WeightsFile>& w, const OptionsDict& o) { \
+        return func(w, o);                                            \
+      },                                                              \
+      priority);                                                      \
   }
 #define REGISTER_NETWORK_WITH_COUNTER(name, func, priority, counter) \
   REGISTER_NETWORK_WITH_COUNTER2(name, func, priority, counter)

@@ -50,29 +50,27 @@ void DxError(HRESULT status, const char* file, const int& line);
 #define ReportDxErrors(status) DxError(status, __FILE__, __LINE__)
 
 struct DXAlloc {
-    ID3D12Resource* resource;
-    uint32_t offset;
-    // Various ways of binding an allocation to shader:
-    // 1. RAW/Structured buffer bound as root UAV, use gpu_va directly.
-    // 2. Typed buffer UAV bound as 4-component typed format (e.g:
-    // R16G16B16A16_FLOAT)
-    // 3. Typed buffer UAV bound as single component scalar typed format (e.g:
-    // R16_FLOAT)
+  ID3D12Resource* resource;
+  uint32_t offset;
+  // Various ways of binding an allocation to shader:
+  // 1. RAW/Structured buffer bound as root UAV, use gpu_va directly.
+  // 2. Typed buffer UAV bound as 4-component typed format (e.g:
+  // R16G16B16A16_FLOAT)
+  // 3. Typed buffer UAV bound as single component scalar typed format (e.g:
+  // R16_FLOAT)
 
-    uint64_t gpu_va;
+  uint64_t gpu_va;
 
-    // Handle of UAV created as 4-component vector type.
-    D3D12_GPU_DESCRIPTOR_HANDLE desc_handle_vector;
+  // Handle of UAV created as 4-component vector type.
+  D3D12_GPU_DESCRIPTOR_HANDLE desc_handle_vector;
 
-    // Handle of UAV created as scalar type.
-    D3D12_GPU_DESCRIPTOR_HANDLE desc_handle_scalar;
+  // Handle of UAV created as scalar type.
+  D3D12_GPU_DESCRIPTOR_HANDLE desc_handle_scalar;
 };
 
 typedef uint16_t dx_half;
 
-inline int DivUp(int a, int b) {
-    return (a + b - 1) / b;
-}
+inline int DivUp(int a, int b) { return (a + b - 1) / b; }
 
 }  // namespace dx_backend
 }  // namespace lczero

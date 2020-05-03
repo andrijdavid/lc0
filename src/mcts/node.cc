@@ -52,54 +52,52 @@ const int kGCIntervalMs = 100;
 
 // Every kGCIntervalMs milliseconds release nodes in a separate GC thread.
 class NodeGarbageCollector {
-public:
-    NodeGarbageCollector() : gc_thread_([this]() {
-        Worker();
-    }) {}
+ public:
+  NodeGarbageCollector() : gc_thread_([this]() { Worker(); }) {}
 
-    // Takes ownership of a subtree, to dispose it in a separate thread when
-    // it has time.
-    void AddToGcQueue(std::unique_ptr<Node> node) {
-        if (!node) return;
+  // Takes ownership of a subtree, to dispose it in a separate thread when
+  // it has time.
+  void AddToGcQueue(std::unique_ptr<Node> node) {
+    if (!node) return;
+    Mutex::Lock lock(gc_mutex_);
+    subtrees_to_gc_.emplace_back(std::move(node));
+  }
+
+  ~NodeGarbageCollector() {
+    // Flips stop flag and waits for a worker thread to stop.
+    stop_.store(true);
+    gc_thread_.join();
+  }
+
+ private:
+  void GarbageCollect() {
+    while (!stop_.load()) {
+      // Node will be released in destructor when mutex is not locked.
+      std::unique_ptr<Node> node_to_gc;
+      {
+        // Lock the mutex and move last subtree from subtrees_to_gc_ into
+        // node_to_gc.
         Mutex::Lock lock(gc_mutex_);
-        subtrees_to_gc_.emplace_back(std::move(node));
+        if (subtrees_to_gc_.empty()) return;
+        node_to_gc = std::move(subtrees_to_gc_.back());
+        subtrees_to_gc_.pop_back();
+      }
     }
+  }
 
-    ~NodeGarbageCollector() {
-        // Flips stop flag and waits for a worker thread to stop.
-        stop_.store(true);
-        gc_thread_.join();
-    }
+  void Worker() {
+    while (!stop_.load()) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(kGCIntervalMs));
+      GarbageCollect();
+    };
+  }
 
-private:
-    void GarbageCollect() {
-        while (!stop_.load()) {
-            // Node will be released in destructor when mutex is not locked.
-            std::unique_ptr<Node> node_to_gc;
-            {
-                // Lock the mutex and move last subtree from subtrees_to_gc_ into
-                // node_to_gc.
-                Mutex::Lock lock(gc_mutex_);
-                if (subtrees_to_gc_.empty()) return;
-                node_to_gc = std::move(subtrees_to_gc_.back());
-                subtrees_to_gc_.pop_back();
-            }
-        }
-    }
+  mutable Mutex gc_mutex_;
+  std::vector<std::unique_ptr<Node>> subtrees_to_gc_ GUARDED_BY(gc_mutex_);
 
-    void Worker() {
-        while (!stop_.load()) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(kGCIntervalMs));
-            GarbageCollect();
-        };
-    }
-
-    mutable Mutex gc_mutex_;
-    std::vector<std::unique_ptr<Node>> subtrees_to_gc_ GUARDED_BY(gc_mutex_);
-
-    // When true, Worker() should stop and exit.
-    std::atomic<bool> stop_{false};
-    std::thread gc_thread_;
+  // When true, Worker() should stop and exit.
+  std::atomic<bool> stop_{false};
+  std::thread gc_thread_;
 };  // namespace
 
 NodeGarbageCollector gNodeGc;
@@ -110,10 +108,10 @@ NodeGarbageCollector gNodeGc;
 /////////////////////////////////////////////////////////////////////////
 
 Move Edge::GetMove(bool as_opponent) const {
-    if (!as_opponent) return move_;
-    Move m = move_;
-    m.Mirror();
-    return m;
+  if (!as_opponent) return move_;
+  Move m = move_;
+  m.Mirror();
+  return m;
 }
 
 // Policy priors (P) are stored in a compressed 16-bit format.
@@ -147,26 +145,26 @@ Move Edge::GetMove(bool as_opponent) const {
 // (the subtraction works despite crossing from exponent to significand). This
 // is combined with the round-to-nearest addition (1<<11) into one op.
 void Edge::SetP(float p) {
-    assert(0.0f <= p && p <= 1.0f);
-    constexpr int32_t roundings = (1 << 11) - (3 << 28);
-    int32_t tmp;
-    std::memcpy(&tmp, &p, sizeof(float));
-    tmp += roundings;
-    p_ = (tmp < 0) ? 0 : static_cast<uint16_t>(tmp >> 12);
+  assert(0.0f <= p && p <= 1.0f);
+  constexpr int32_t roundings = (1 << 11) - (3 << 28);
+  int32_t tmp;
+  std::memcpy(&tmp, &p, sizeof(float));
+  tmp += roundings;
+  p_ = (tmp < 0) ? 0 : static_cast<uint16_t>(tmp >> 12);
 }
 
 float Edge::GetP() const {
-    // Reshift into place and set the assumed-set exponent bits.
-    uint32_t tmp = (static_cast<uint32_t>(p_) << 12) | (3 << 28);
-    float ret;
-    std::memcpy(&ret, &tmp, sizeof(uint32_t));
-    return ret;
+  // Reshift into place and set the assumed-set exponent bits.
+  uint32_t tmp = (static_cast<uint32_t>(p_) << 12) | (3 << 28);
+  float ret;
+  std::memcpy(&ret, &tmp, sizeof(uint32_t));
+  return ret;
 }
 
 std::string Edge::DebugString() const {
-    std::ostringstream oss;
-    oss << "Move: " << move_.as_string() << " p_: " << p_ << " GetP: " << GetP();
-    return oss.str();
+  std::ostringstream oss;
+  oss << "Move: " << move_.as_string() << " p_: " << p_ << " GetP: " << GetP();
+  return oss.str();
 }
 
 /////////////////////////////////////////////////////////////////////////
@@ -175,8 +173,8 @@ std::string Edge::DebugString() const {
 
 EdgeList::EdgeList(MoveList moves)
     : edges_(std::make_unique<Edge[]>(moves.size())), size_(moves.size()) {
-    auto* edge = edges_.get();
-    for (const auto move : moves) edge++->SetMove(move);
+  auto* edge = edges_.get();
+  for (const auto move : moves) edge++->SetMove(move);
 }
 
 /////////////////////////////////////////////////////////////////////////
@@ -184,163 +182,151 @@ EdgeList::EdgeList(MoveList moves)
 /////////////////////////////////////////////////////////////////////////
 
 Node* Node::CreateSingleChildNode(Move move) {
-    assert(!edges_);
-    assert(!child_);
-    edges_ = EdgeList({move});
-    child_ = std::make_unique<Node>(this, 0);
-    return child_.get();
+  assert(!edges_);
+  assert(!child_);
+  edges_ = EdgeList({move});
+  child_ = std::make_unique<Node>(this, 0);
+  return child_.get();
 }
 
 void Node::CreateEdges(const MoveList& moves) {
-    assert(!edges_);
-    assert(!child_);
-    edges_ = EdgeList(moves);
+  assert(!edges_);
+  assert(!child_);
+  edges_ = EdgeList(moves);
 }
 
-Node::ConstIterator Node::Edges() const {
-    return {edges_, &child_};
-}
-Node::Iterator Node::Edges() {
-    return {edges_, &child_};
-}
+Node::ConstIterator Node::Edges() const { return {edges_, &child_}; }
+Node::Iterator Node::Edges() { return {edges_, &child_}; }
 
-float Node::GetVisitedPolicy() const {
-    return visited_policy_;
-}
+float Node::GetVisitedPolicy() const { return visited_policy_; }
 
 Edge* Node::GetEdgeToNode(const Node* node) const {
-    assert(node->parent_ == this);
-    assert(node->index_ < edges_.size());
-    return &edges_[node->index_];
+  assert(node->parent_ == this);
+  assert(node->index_ < edges_.size());
+  return &edges_[node->index_];
 }
 
-Edge* Node::GetOwnEdge() const {
-    return GetParent()->GetEdgeToNode(this);
-}
+Edge* Node::GetOwnEdge() const { return GetParent()->GetEdgeToNode(this); }
 
 std::string Node::DebugString() const {
-    std::ostringstream oss;
-    oss << " Term:" << static_cast<int>(terminal_type_) << " This:" << this
-        << " Parent:" << parent_ << " Index:" << index_
-        << " Child:" << child_.get() << " Sibling:" << sibling_.get()
-        << " WL:" << wl_ << " N:" << n_ << " N_:" << n_in_flight_
-        << " Edges:" << edges_.size()
-        << " Bounds:" << static_cast<int>(lower_bound_) - 2 << ","
-        << static_cast<int>(upper_bound_) - 2;
-    return oss.str();
+  std::ostringstream oss;
+  oss << " Term:" << static_cast<int>(terminal_type_) << " This:" << this
+      << " Parent:" << parent_ << " Index:" << index_
+      << " Child:" << child_.get() << " Sibling:" << sibling_.get()
+      << " WL:" << wl_ << " N:" << n_ << " N_:" << n_in_flight_
+      << " Edges:" << edges_.size()
+      << " Bounds:" << static_cast<int>(lower_bound_) - 2 << ","
+      << static_cast<int>(upper_bound_) - 2;
+  return oss.str();
 }
 
 void Node::MakeTerminal(GameResult result, float plies_left, Terminal type) {
-    SetBounds(result, result);
-    terminal_type_ = type;
-    m_ = plies_left;
-    if (result == GameResult::DRAW) {
-        wl_ = 0.0f;
-        d_ = 1.0f;
-    } else if (result == GameResult::WHITE_WON) {
-        wl_ = 1.0f;
-        d_ = 0.0f;
-    } else if (result == GameResult::BLACK_WON) {
-        wl_ = -1.0f;
-        d_ = 0.0f;
-    }
+  SetBounds(result, result);
+  terminal_type_ = type;
+  m_ = plies_left;
+  if (result == GameResult::DRAW) {
+    wl_ = 0.0f;
+    d_ = 1.0f;
+  } else if (result == GameResult::WHITE_WON) {
+    wl_ = 1.0f;
+    d_ = 0.0f;
+  } else if (result == GameResult::BLACK_WON) {
+    wl_ = -1.0f;
+    d_ = 0.0f;
+  }
 }
 
 void Node::MakeNotTerminal() {
-    terminal_type_ = Terminal::NonTerminal;
-    n_ = 0;
+  terminal_type_ = Terminal::NonTerminal;
+  n_ = 0;
 
-    // If we have edges, we've been extended (1 visit), so include children too.
-    if (edges_) {
-        n_++;
-        for (const auto& child : Edges()) {
-            const auto n = child.GetN();
-            if (n > 0) {
-                n_ += n;
-                // Flip Q for opponent.
-                // Default values don't matter as n is > 0.
-                wl_ += -child.GetWL(0.0f) * n;
-                d_ += child.GetD(0.0f) * n;
-            }
-        }
-
-        // Recompute with current eval (instead of network's) and children's eval.
-        wl_ /= n_;
-        d_ /= n_;
+  // If we have edges, we've been extended (1 visit), so include children too.
+  if (edges_) {
+    n_++;
+    for (const auto& child : Edges()) {
+      const auto n = child.GetN();
+      if (n > 0) {
+        n_ += n;
+        // Flip Q for opponent.
+        // Default values don't matter as n is > 0.
+        wl_ += -child.GetWL(0.0f) * n;
+        d_ += child.GetD(0.0f) * n;
+      }
     }
+
+    // Recompute with current eval (instead of network's) and children's eval.
+    wl_ /= n_;
+    d_ /= n_;
+  }
 }
 
 void Node::SetBounds(GameResult lower, GameResult upper) {
-    lower_bound_ = lower;
-    upper_bound_ = upper;
+  lower_bound_ = lower;
+  upper_bound_ = upper;
 }
 
 bool Node::TryStartScoreUpdate() {
-    if (n_ == 0 && n_in_flight_ > 0) return false;
-    ++n_in_flight_;
-    return true;
+  if (n_ == 0 && n_in_flight_ > 0) return false;
+  ++n_in_flight_;
+  return true;
 }
 
 void Node::CancelScoreUpdate(int multivisit) {
-    n_in_flight_ -= multivisit;
-    best_child_cached_ = nullptr;
+  n_in_flight_ -= multivisit;
+  best_child_cached_ = nullptr;
 }
 
 void Node::FinalizeScoreUpdate(float v, float d, float m, int multivisit) {
-    // Recompute Q.
-    wl_ += multivisit * (v - wl_) / (n_ + multivisit);
-    d_ += multivisit * (d - d_) / (n_ + multivisit);
-    m_ += multivisit * (m - m_) / (n_ + multivisit);
+  // Recompute Q.
+  wl_ += multivisit * (v - wl_) / (n_ + multivisit);
+  d_ += multivisit * (d - d_) / (n_ + multivisit);
+  m_ += multivisit * (m - m_) / (n_ + multivisit);
 
-    // If first visit, update parent's sum of policies visited at least once.
-    if (n_ == 0 && parent_ != nullptr) {
-        parent_->visited_policy_ += parent_->edges_[index_].GetP();
-    }
-    // Increment N.
-    n_ += multivisit;
-    // Decrement virtual loss.
-    n_in_flight_ -= multivisit;
-    // Best child is potentially no longer valid.
-    best_child_cached_ = nullptr;
+  // If first visit, update parent's sum of policies visited at least once.
+  if (n_ == 0 && parent_ != nullptr) {
+    parent_->visited_policy_ += parent_->edges_[index_].GetP();
+  }
+  // Increment N.
+  n_ += multivisit;
+  // Decrement virtual loss.
+  n_in_flight_ -= multivisit;
+  // Best child is potentially no longer valid.
+  best_child_cached_ = nullptr;
 }
 
 void Node::UpdateBestChild(const Iterator& best_edge, int visits_allowed) {
-    best_child_cached_ = best_edge.node();
-    // An edge can point to an unexpanded node with n==0. These nodes don't
-    // increment their n_in_flight_ the same way and thus are not safe to cache.
-    if (best_child_cached_ && best_child_cached_->GetN() == 0) {
-        best_child_cached_ = nullptr;
-    }
-    best_child_cache_in_flight_limit_ = visits_allowed + n_in_flight_;
+  best_child_cached_ = best_edge.node();
+  // An edge can point to an unexpanded node with n==0. These nodes don't
+  // increment their n_in_flight_ the same way and thus are not safe to cache.
+  if (best_child_cached_ && best_child_cached_->GetN() == 0) {
+    best_child_cached_ = nullptr;
+  }
+  best_child_cache_in_flight_limit_ = visits_allowed + n_in_flight_;
 }
 
-Node::NodeRange Node::ChildNodes() const {
-    return child_.get();
-}
+Node::NodeRange Node::ChildNodes() const { return child_.get(); }
 
-void Node::ReleaseChildren() {
-    gNodeGc.AddToGcQueue(std::move(child_));
-}
+void Node::ReleaseChildren() { gNodeGc.AddToGcQueue(std::move(child_)); }
 
 void Node::ReleaseChildrenExceptOne(Node* node_to_save) {
-    // Stores node which will have to survive (or nullptr if it's not found).
-    std::unique_ptr<Node> saved_node;
-    // Pointer to unique_ptr, so that we could move from it.
-    for (std::unique_ptr<Node>* node = &child_; *node;
-            node = &(*node)->sibling_) {
-        // If current node is the one that we have to save.
-        if (node->get() == node_to_save) {
-            // Kill all remaining siblings.
-            gNodeGc.AddToGcQueue(std::move((*node)->sibling_));
-            // Save the node, and take the ownership from the unique_ptr.
-            saved_node = std::move(*node);
-            break;
-        }
+  // Stores node which will have to survive (or nullptr if it's not found).
+  std::unique_ptr<Node> saved_node;
+  // Pointer to unique_ptr, so that we could move from it.
+  for (std::unique_ptr<Node>* node = &child_; *node;
+       node = &(*node)->sibling_) {
+    // If current node is the one that we have to save.
+    if (node->get() == node_to_save) {
+      // Kill all remaining siblings.
+      gNodeGc.AddToGcQueue(std::move((*node)->sibling_));
+      // Save the node, and take the ownership from the unique_ptr.
+      saved_node = std::move(*node);
+      break;
     }
-    // Make saved node the only child. (kills previous siblings).
-    gNodeGc.AddToGcQueue(std::move(child_));
-    child_ = std::move(saved_node);
-    if (!child_) edges_ = EdgeList();  // Clear edges list.
+  }
+  // Make saved node the only child. (kills previous siblings).
+  gNodeGc.AddToGcQueue(std::move(child_));
+  child_ = std::move(saved_node);
+  if (!child_) edges_ = EdgeList();  // Clear edges list.
 }
 
 V5TrainingData Node::GetV5TrainingData(
@@ -348,100 +334,100 @@ V5TrainingData Node::GetV5TrainingData(
     FillEmptyHistory fill_empty_history,
     pblczero::NetworkFormat::InputFormat input_format, float best_q,
     float best_d, float best_m) const {
-    V5TrainingData result;
+  V5TrainingData result;
 
-    // Set version.
-    result.version = 5;
-    result.input_format = input_format;
+  // Set version.
+  result.version = 5;
+  result.input_format = input_format;
 
-    // Populate planes.
-    int transform;
-    InputPlanes planes = EncodePositionForNN(input_format, history, 8,
-                         fill_empty_history, &transform);
-    int plane_idx = 0;
-    for (auto& plane : result.planes) {
-        plane = ReverseBitsInBytes(planes[plane_idx++].mask);
+  // Populate planes.
+  int transform;
+  InputPlanes planes = EncodePositionForNN(input_format, history, 8,
+                                           fill_empty_history, &transform);
+  int plane_idx = 0;
+  for (auto& plane : result.planes) {
+    plane = ReverseBitsInBytes(planes[plane_idx++].mask);
+  }
+
+  // Populate probabilities.
+  auto total_n = GetChildrenVisits();
+  // Prevent garbage/invalid training data from being uploaded to server.
+  // It's possible to have N=0 when there is only one legal move in position
+  // (due to smart pruning).
+  if (total_n == 0 && GetNumEdges() != 1) {
+    throw Exception("Search generated invalid data!");
+  }
+  // Set illegal moves to have -1 probability.
+  std::fill(std::begin(result.probabilities), std::end(result.probabilities),
+            -1);
+  // Set moves probabilities according to their relative amount of visits.
+  for (const auto& child : Edges()) {
+    result.probabilities[child.edge()->GetMove().as_nn_index(transform)] =
+        total_n > 0 ? child.GetN() / static_cast<float>(total_n) : 1;
+  }
+
+  const auto& position = history.Last();
+  const auto& castlings = position.GetBoard().castlings();
+  // Populate castlings.
+  // For non-frc trained nets, just send 1 like we used to.
+  uint8_t queen_side = 1;
+  uint8_t king_side = 1;
+  // If frc trained, send the bit mask representing rook position.
+  if (input_format == pblczero::NetworkFormat::INPUT_112_WITH_CASTLING_PLANE ||
+      input_format ==
+          pblczero::NetworkFormat::INPUT_112_WITH_CANONICALIZATION) {
+    queen_side <<= castlings.queenside_rook();
+    king_side <<= castlings.kingside_rook();
+  }
+
+  result.castling_us_ooo = castlings.we_can_000() ? queen_side : 0;
+  result.castling_us_oo = castlings.we_can_00() ? king_side : 0;
+  result.castling_them_ooo = castlings.they_can_000() ? queen_side : 0;
+  result.castling_them_oo = castlings.they_can_00() ? king_side : 0;
+
+  // Other params.
+  if (input_format ==
+      pblczero::NetworkFormat::INPUT_112_WITH_CANONICALIZATION) {
+    result.side_to_move_or_enpassant =
+        position.GetBoard().en_passant().as_int() >> 56;
+    if ((transform & FlipTransform) != 0) {
+      result.side_to_move_or_enpassant =
+          ReverseBitsInBytes(result.side_to_move_or_enpassant);
     }
+    // Send transform in deprecated move count so rescorer can reverse it to
+    // calculate the actual move list from the input data.
+    result.invariance_info =
+        transform | (position.IsBlackToMove() ? (1u << 7) : 0u);
+  } else {
+    result.side_to_move_or_enpassant = position.IsBlackToMove() ? 1 : 0;
+    result.invariance_info = 0;
+  }
+  result.rule50_count = position.GetRule50Ply();
 
-    // Populate probabilities.
-    auto total_n = GetChildrenVisits();
-    // Prevent garbage/invalid training data from being uploaded to server.
-    // It's possible to have N=0 when there is only one legal move in position
-    // (due to smart pruning).
-    if (total_n == 0 && GetNumEdges() != 1) {
-        throw Exception("Search generated invalid data!");
-    }
-    // Set illegal moves to have -1 probability.
-    std::fill(std::begin(result.probabilities), std::end(result.probabilities),
-              -1);
-    // Set moves probabilities according to their relative amount of visits.
-    for (const auto& child : Edges()) {
-        result.probabilities[child.edge()->GetMove().as_nn_index(transform)] =
-            total_n > 0 ? child.GetN() / static_cast<float>(total_n) : 1;
-    }
+  // Game result.
+  if (game_result == GameResult::WHITE_WON) {
+    result.result = position.IsBlackToMove() ? -1 : 1;
+  } else if (game_result == GameResult::BLACK_WON) {
+    result.result = position.IsBlackToMove() ? 1 : -1;
+  } else {
+    result.result = 0;
+  }
 
-    const auto& position = history.Last();
-    const auto& castlings = position.GetBoard().castlings();
-    // Populate castlings.
-    // For non-frc trained nets, just send 1 like we used to.
-    uint8_t queen_side = 1;
-    uint8_t king_side = 1;
-    // If frc trained, send the bit mask representing rook position.
-    if (input_format == pblczero::NetworkFormat::INPUT_112_WITH_CASTLING_PLANE ||
-            input_format ==
-            pblczero::NetworkFormat::INPUT_112_WITH_CANONICALIZATION) {
-        queen_side <<= castlings.queenside_rook();
-        king_side <<= castlings.kingside_rook();
-    }
+  // Aggregate evaluation WL.
+  result.root_q = -GetWL();
+  result.best_q = best_q;
 
-    result.castling_us_ooo = castlings.we_can_000() ? queen_side : 0;
-    result.castling_us_oo = castlings.we_can_00() ? king_side : 0;
-    result.castling_them_ooo = castlings.they_can_000() ? queen_side : 0;
-    result.castling_them_oo = castlings.they_can_00() ? king_side : 0;
+  // Draw probability of WDL head.
+  result.root_d = GetD();
+  result.best_d = best_d;
 
-    // Other params.
-    if (input_format ==
-            pblczero::NetworkFormat::INPUT_112_WITH_CANONICALIZATION) {
-        result.side_to_move_or_enpassant =
-            position.GetBoard().en_passant().as_int() >> 56;
-        if ((transform & FlipTransform) != 0) {
-            result.side_to_move_or_enpassant =
-                ReverseBitsInBytes(result.side_to_move_or_enpassant);
-        }
-        // Send transform in deprecated move count so rescorer can reverse it to
-        // calculate the actual move list from the input data.
-        result.invariance_info =
-            transform | (position.IsBlackToMove() ? (1u << 7) : 0u);
-    } else {
-        result.side_to_move_or_enpassant = position.IsBlackToMove() ? 1 : 0;
-        result.invariance_info = 0;
-    }
-    result.rule50_count = position.GetRule50Ply();
+  result.root_m = GetM();
+  result.best_m = best_m;
 
-    // Game result.
-    if (game_result == GameResult::WHITE_WON) {
-        result.result = position.IsBlackToMove() ? -1 : 1;
-    } else if (game_result == GameResult::BLACK_WON) {
-        result.result = position.IsBlackToMove() ? 1 : -1;
-    } else {
-        result.result = 0;
-    }
+  // Unknown here - will be filled in once the full data has been collected.
+  result.plies_left = 0;
 
-    // Aggregate evaluation WL.
-    result.root_q = -GetWL();
-    result.best_q = best_q;
-
-    // Draw probability of WDL head.
-    result.root_d = GetD();
-    result.best_d = best_d;
-
-    result.root_m = GetM();
-    result.best_m = best_m;
-
-    // Unknown here - will be filled in once the full data has been collected.
-    result.plies_left = 0;
-
-    return result;
+  return result;
 }
 
 /////////////////////////////////////////////////////////////////////////
@@ -449,9 +435,9 @@ V5TrainingData Node::GetV5TrainingData(
 /////////////////////////////////////////////////////////////////////////
 
 std::string EdgeAndNode::DebugString() const {
-    if (!edge_) return "(no edge)";
-    return edge_->DebugString() + " " +
-           (node_ ? node_->DebugString() : "(no node)");
+  if (!edge_) return "(no edge)";
+  return edge_->DebugString() + " " +
+         (node_ ? node_->DebugString() : "(no node)");
 }
 
 /////////////////////////////////////////////////////////////////////////
@@ -459,77 +445,77 @@ std::string EdgeAndNode::DebugString() const {
 /////////////////////////////////////////////////////////////////////////
 
 void NodeTree::MakeMove(Move move) {
-    if (HeadPosition().IsBlackToMove()) move.Mirror();
-    const auto& board = HeadPosition().GetBoard();
+  if (HeadPosition().IsBlackToMove()) move.Mirror();
+  const auto& board = HeadPosition().GetBoard();
 
-    Node* new_head = nullptr;
-    for (auto& n : current_head_->Edges()) {
-        if (board.IsSameMove(n.GetMove(), move)) {
-            new_head = n.GetOrSpawnNode(current_head_);
-            // Ensure head is not terminal, so search can extend or visit children of
-            // "terminal" positions, e.g., WDL hits, converted terminals, 3-fold draw.
-            if (new_head->IsTerminal()) new_head->MakeNotTerminal();
-            break;
-        }
+  Node* new_head = nullptr;
+  for (auto& n : current_head_->Edges()) {
+    if (board.IsSameMove(n.GetMove(), move)) {
+      new_head = n.GetOrSpawnNode(current_head_);
+      // Ensure head is not terminal, so search can extend or visit children of
+      // "terminal" positions, e.g., WDL hits, converted terminals, 3-fold draw.
+      if (new_head->IsTerminal()) new_head->MakeNotTerminal();
+      break;
     }
-    move = board.GetModernMove(move);
-    current_head_->ReleaseChildrenExceptOne(new_head);
-    current_head_ =
-        new_head ? new_head : current_head_->CreateSingleChildNode(move);
-    history_.Append(move);
+  }
+  move = board.GetModernMove(move);
+  current_head_->ReleaseChildrenExceptOne(new_head);
+  current_head_ =
+      new_head ? new_head : current_head_->CreateSingleChildNode(move);
+  history_.Append(move);
 }
 
 void NodeTree::TrimTreeAtHead() {
-    auto tmp = std::move(current_head_->sibling_);
-    // Send dependent nodes for GC instead of destroying them immediately.
-    gNodeGc.AddToGcQueue(std::move(current_head_->child_));
-    *current_head_ = Node(current_head_->GetParent(), current_head_->index_);
-    current_head_->sibling_ = std::move(tmp);
+  auto tmp = std::move(current_head_->sibling_);
+  // Send dependent nodes for GC instead of destroying them immediately.
+  gNodeGc.AddToGcQueue(std::move(current_head_->child_));
+  *current_head_ = Node(current_head_->GetParent(), current_head_->index_);
+  current_head_->sibling_ = std::move(tmp);
 }
 
 bool NodeTree::ResetToPosition(const std::string& starting_fen,
                                const std::vector<Move>& moves) {
-    ChessBoard starting_board;
-    int no_capture_ply;
-    int full_moves;
-    starting_board.SetFromFen(starting_fen, &no_capture_ply, &full_moves);
-    if (gamebegin_node_ &&
-            (history_.Starting().GetBoard() != starting_board ||
-             history_.Starting().GetRule50Ply() != no_capture_ply)) {
-        // Completely different position.
-        DeallocateTree();
-    }
+  ChessBoard starting_board;
+  int no_capture_ply;
+  int full_moves;
+  starting_board.SetFromFen(starting_fen, &no_capture_ply, &full_moves);
+  if (gamebegin_node_ &&
+      (history_.Starting().GetBoard() != starting_board ||
+       history_.Starting().GetRule50Ply() != no_capture_ply)) {
+    // Completely different position.
+    DeallocateTree();
+  }
 
-    if (!gamebegin_node_) {
-        gamebegin_node_ = std::make_unique<Node>(nullptr, 0);
-    }
+  if (!gamebegin_node_) {
+    gamebegin_node_ = std::make_unique<Node>(nullptr, 0);
+  }
 
-    history_.Reset(starting_board, no_capture_ply,
-                   full_moves * 2 - (starting_board.flipped() ? 1 : 2));
+  history_.Reset(starting_board, no_capture_ply,
+                 full_moves * 2 - (starting_board.flipped() ? 1 : 2));
 
-    Node* old_head = current_head_;
-    current_head_ = gamebegin_node_.get();
-    bool seen_old_head = (gamebegin_node_.get() == old_head);
-    for (const auto& move : moves) {
-        MakeMove(move);
-        if (old_head == current_head_) seen_old_head = true;
-    }
+  Node* old_head = current_head_;
+  current_head_ = gamebegin_node_.get();
+  bool seen_old_head = (gamebegin_node_.get() == old_head);
+  for (const auto& move : moves) {
+    MakeMove(move);
+    if (old_head == current_head_) seen_old_head = true;
+  }
 
-    // MakeMove guarantees that no siblings exist; but, if we didn't see the old
-    // head, it means we might have a position that was an ancestor to a
-    // previously searched position, which means that the current_head_ might
-    // retain old n_ and q_ (etc) data, even though its old children were
-    // previously trimmed; we need to reset current_head_ in that case.
-    if (!seen_old_head) TrimTreeAtHead();
-    return seen_old_head;
+  // MakeMove guarantees that no siblings exist; but, if we didn't see the old
+  // head, it means we might have a position that was an ancestor to a
+  // previously searched position, which means that the current_head_ might
+  // retain old n_ and q_ (etc) data, even though its old children were
+  // previously trimmed; we need to reset current_head_ in that case.
+  if (!seen_old_head) TrimTreeAtHead();
+  return seen_old_head;
 }
 
 void NodeTree::DeallocateTree() {
-    // Same as gamebegin_node_.reset(), but actual deallocation will happen in
-    // GC thread.
-    gNodeGc.AddToGcQueue(std::move(gamebegin_node_));
-    gamebegin_node_ = nullptr;
-    current_head_ = nullptr;
+  // Same as gamebegin_node_.reset(), but actual deallocation will happen in
+  // GC thread.
+  gNodeGc.AddToGcQueue(std::move(gamebegin_node_));
+  gamebegin_node_ = nullptr;
+  current_head_ = nullptr;
 }
 
 }  // namespace lczero
