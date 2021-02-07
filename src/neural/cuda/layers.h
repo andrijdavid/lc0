@@ -26,9 +26,10 @@
 */
 #pragma once
 
-#include <cstddef>
 #include <cublas_v2.h>
 #include <cudnn.h>
+
+#include <cstddef>
 
 namespace lczero {
 namespace cudnn_backend {
@@ -60,7 +61,7 @@ class BaseLayer {
   int H;
   int W;
 
-  bool nhwc_;   // tensor layout
+  bool nhwc_;  // tensor layout
 };
 
 template <typename DataType>
@@ -76,7 +77,7 @@ class ConvLayer : public BaseLayer<DataType> {
  public:
   ConvLayer(BaseLayer<DataType>* ip, int C, int H, int W, int size, int Cin,
             bool relu = false, bool bias = false);
-  
+
   ConvLayer(bool nhwc, int C, int H, int W, int size, int Cin,
             bool relu = false, bool bias = false);
 
@@ -127,7 +128,7 @@ class SoftMaxLayer : public BaseLayer<DataType> {
 
 template <typename DataType>
 class FCLayer : public BaseLayer<DataType> {
- using BaseLayer<DataType>::nhwc_;
+  using BaseLayer<DataType>::nhwc_;
 
  public:
   FCLayer(BaseLayer<DataType>* ip, int C, int H, int W, bool relu, bool bias,
@@ -149,8 +150,8 @@ class FCLayer : public BaseLayer<DataType> {
 };
 
 template <typename DataType>
-class PolicyMapLayer: public BaseLayer<DataType> {
- using BaseLayer<DataType>::nhwc_;
+class PolicyMapLayer : public BaseLayer<DataType> {
+  using BaseLayer<DataType>::nhwc_;
 
  public:
   PolicyMapLayer(BaseLayer<DataType>* ip, int C, int H, int W, int usedSize);
@@ -162,9 +163,9 @@ class PolicyMapLayer: public BaseLayer<DataType> {
             cudnnHandle_t cudnn, cublasHandle_t cublas) override;
 
  private:
-  int used_size_; // Size of the input without padding (typically 73x64).
-                  // This is over-written to contain size with padding 
-                  // (typically 80x64) after CHW->HWC conversion for fp16.
+  int used_size_;  // Size of the input without padding (typically 73x64).
+  // This is over-written to contain size with padding
+  // (typically 80x64) after CHW->HWC conversion for fp16.
   short* weights_ = nullptr;
 };
 
@@ -173,8 +174,8 @@ class PolicyMapLayer: public BaseLayer<DataType> {
 // connection -> RELU.
 template <typename DataType>
 class SELayer : public BaseLayer<DataType> {
- using BaseLayer<DataType>::C;
- using BaseLayer<DataType>::nhwc_;
+  using BaseLayer<DataType>::C;
+  using BaseLayer<DataType>::nhwc_;
 
  public:
   SELayer(BaseLayer<DataType>* ip, int numFc1Out,
@@ -190,7 +191,7 @@ class SELayer : public BaseLayer<DataType> {
 
  private:
   DataType* w1_ = nullptr;
-  DataType* w1_t_ = nullptr;    // transposed copy used by fused SE kernel
+  DataType* w1_t_ = nullptr;  // transposed copy used by fused SE kernel
   DataType* b1_ = nullptr;
   DataType* w2_ = nullptr;
   DataType* w2_t_ = nullptr;
@@ -198,6 +199,52 @@ class SELayer : public BaseLayer<DataType> {
   DataType* bPrev_ = nullptr;
   int numFc1Out_;
   bool addPrevLayerBias_;
+};
+
+// Multi-pass Winograd Conv fused with (optional) SE
+template <typename DataType>
+class FusedWinogradConvSELayer : public BaseLayer<DataType> {
+  using BaseLayer<DataType>::C;
+  using BaseLayer<DataType>::H;
+  using BaseLayer<DataType>::W;
+  using BaseLayer<DataType>::GetC;
+  using BaseLayer<DataType>::GetH;
+  using BaseLayer<DataType>::GetW;
+  using BaseLayer<DataType>::nhwc_;
+
+ public:
+  FusedWinogradConvSELayer(BaseLayer<DataType>* ip, int C, int H, int W,
+                           int Cin, bool relu, bool bias, bool skipAdd, bool se,
+                           int se_k, bool use_gemm_ex);
+
+  ~FusedWinogradConvSELayer();
+  void LoadWeights(float* pfilter, float* pBias, void* scratch);
+  void LoadSEWeights(float* w1, float* b1, float* w2, float* b2, void* scratch);
+  void Eval(int N, DataType* output, const DataType* input,
+            const DataType* input2, void* scratch, size_t scratch_size,
+            cudnnHandle_t cudnn, cublasHandle_t cublas) override;
+
+ private:
+  const int c_input_;
+  const bool use_relu_;
+  const bool use_bias_;
+  const bool skip_add_;
+  const bool has_se_;
+  const int se_k_;
+  const bool use_gemm_ex_;
+
+  DataType* biases_ = nullptr;
+  DataType* transformed_weights_ = nullptr;  // After winograd transform.
+
+  // Weights and Biases for (optional) SE.
+  DataType* w1_;
+  DataType* w2_;
+  DataType* b1_;
+  DataType* b2_;
+
+  void cublasRowMajorMatrixMul(const DataType* A, const DataType* B,
+                               DataType* Out, int M, int N, int K,
+                               int batchSize, cublasHandle_t cublas);
 };
 
 }  // namespace cudnn_backend

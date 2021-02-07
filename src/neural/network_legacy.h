@@ -19,6 +19,7 @@
 #pragma once
 
 #include <vector>
+
 #include "proto/net.pb.h"
 
 namespace lczero {
@@ -78,6 +79,13 @@ struct LegacyWeights {
   Vec ip1_val_b;
   Vec ip2_val_w;
   Vec ip2_val_b;
+
+  // Moves left head
+  ConvBlock moves_left;
+  Vec ip1_mov_w;
+  Vec ip1_mov_b;
+  Vec ip2_mov_w;
+  Vec ip2_mov_b;
 };
 
 }  // namespace lczero

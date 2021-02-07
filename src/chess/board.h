@@ -64,12 +64,13 @@ class ChessBoard {
 
   static const char* kStartposFen;
   static const ChessBoard kStartposBoard;
+  static const BitBoard kPawnMask;
 
   // Sets position from FEN string.
-  // If @no_capture_ply and @moves are not nullptr, they are filled with number
+  // If @rule50_ply and @moves are not nullptr, they are filled with number
   // of moves without capture and number of full moves since the beginning of
   // the game.
-  void SetFromFen(const std::string& fen, int* no_capture_ply = nullptr,
+  void SetFromFen(std::string fen, int* rule50_ply = nullptr,
                   int* moves = nullptr);
   // Nullifies the whole structure.
   void Clear();
@@ -181,19 +182,18 @@ class ChessBoard {
 
   BitBoard ours() const { return our_pieces_; }
   BitBoard theirs() const { return their_pieces_; }
-  BitBoard pawns() const;
-  BitBoard en_passant() const;
+  BitBoard pawns() const { return pawns_ & kPawnMask; }
+  BitBoard en_passant() const { return pawns_ - kPawnMask; }
   BitBoard bishops() const { return bishops_ - rooks_; }
   BitBoard rooks() const { return rooks_ - bishops_; }
   BitBoard queens() const { return rooks_ & bishops_; }
-  BitBoard our_knights() const {
-    return our_pieces_ - pawns() - our_king_ - rooks_ - bishops_;
+  BitBoard knights() const {
+    return (our_pieces_ | their_pieces_) - pawns() - our_king_ - their_king_ -
+           rooks_ - bishops_;
   }
-  BitBoard their_knights() const {
-    return their_pieces_ - pawns() - their_king_ - rooks_ - bishops_;
+  BitBoard kings() const {
+    return our_king_.as_board() | their_king_.as_board();
   }
-  BitBoard our_king() const { return 1ull << our_king_.as_int(); }
-  BitBoard their_king() const { return 1ull << their_king_.as_int(); }
   const Castlings& castlings() const { return castlings_; }
   bool flipped() const { return flipped_; }
 
@@ -210,26 +210,26 @@ class ChessBoard {
 
   enum Square : uint8_t {
     // clang-format off
-    A1 = 0, B1, C1, D1, E1, F1, G1, H1,
-    A2, B2, C2, D2, E2, F2, G2, H2,
-    A3, B3, C3, D3, E3, F3, G3, H3,
-    A4, B4, C4, D4, E4, F4, G4, H4,
-    A5, B5, C5, D5, E5, F5, G5, H5,
-    A6, B6, C6, D6, E6, F6, G6, H6,
-    A7, B7, C7, D7, E7, F7, G7, H7,
-    A8, B8, C8, D8, E8, F8, G8, H8,
+        A1 = 0, B1, C1, D1, E1, F1, G1, H1,
+        A2, B2, C2, D2, E2, F2, G2, H2,
+        A3, B3, C3, D3, E3, F3, G3, H3,
+        A4, B4, C4, D4, E4, F4, G4, H4,
+        A5, B5, C5, D5, E5, F5, G5, H5,
+        A6, B6, C6, D6, E6, F6, G6, H6,
+        A7, B7, C7, D7, E7, F7, G7, H7,
+        A8, B8, C8, D8, E8, F8, G8, H8,
     // clang-format on
   };
 
   enum File : uint8_t {
     // clang-format off
-    FILE_A = 0, FILE_B, FILE_C, FILE_D, FILE_E, FILE_F, FILE_G, FILE_H
+        FILE_A = 0, FILE_B, FILE_C, FILE_D, FILE_E, FILE_F, FILE_G, FILE_H
     // clang-format on
   };
 
   enum Rank : uint8_t {
     // clang-format off
-    RANK_1 = 0, RANK_2, RANK_3, RANK_4, RANK_5, RANK_6, RANK_7, RANK_8
+        RANK_1 = 0, RANK_2, RANK_3, RANK_4, RANK_5, RANK_6, RANK_7, RANK_8
     // clang-format on
   };
 

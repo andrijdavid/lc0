@@ -31,6 +31,8 @@
   Program grant you additional permission to convey the resulting work.
 */
 
+#include "syzygy/syzygy.h"
+
 #include <atomic>
 #include <cstdint>
 #include <cstdio>
@@ -41,8 +43,6 @@
 #include <random>
 #include <sstream>
 #include <string>
-
-#include "syzygy/syzygy.h"
 
 #include "utils/exception.h"
 #include "utils/logging.h"
@@ -194,7 +194,7 @@ int count_pieces(const ChessBoard& pos, int type, bool theirs) {
     case BISHOP:
       return (all & pos.bishops()).count_few();
     case KNIGHT:
-      return (theirs ? pos.their_knights() : pos.our_knights()).count_few();
+      return (all & pos.knights()).count_few();
     case PAWN:
       return (all & pos.pawns()).count_few();
     default:
@@ -207,7 +207,7 @@ BitBoard pieces(const ChessBoard& pos, int type, bool theirs) {
   const BitBoard all = theirs ? pos.theirs() : pos.ours();
   switch (type) {
     case KING:
-      return theirs ? pos.their_king() : pos.our_king();
+      return all & pos.kings();
     case QUEEN:
       return all & pos.queens();
     case ROOK:
@@ -215,7 +215,7 @@ BitBoard pieces(const ChessBoard& pos, int type, bool theirs) {
     case BISHOP:
       return all & pos.bishops();
     case KNIGHT:
-      return theirs ? pos.their_knights() : pos.our_knights();
+      return all & pos.knights();
     case PAWN:
       return all & pos.pawns();
     default:
@@ -1200,7 +1200,8 @@ class SyzygyTablebaseImpl {
     size_t tb_size[6][2];
     const int num = num_tables(be, type);
     EncInfo* ei = first_ei(be, type);
-    const int enc = !be->hasPawns ? PIECE_ENC : type != DTM ? FILE_ENC : RANK_ENC;
+    const int enc =
+        !be->hasPawns ? PIECE_ENC : type != DTM ? FILE_ENC : RANK_ENC;
 
     for (int t = 0; t < num; t++) {
       tb_size[t][0] = init_enc_info(&ei[t], be, data, 0, t, enc);
@@ -1321,8 +1322,7 @@ class SyzygyTablebaseImpl {
     const Key key = calc_key_from_position(pos);
 
     // Test for KvK
-    if (type == WDL && pos.ours() == pos.our_king() &&
-        pos.theirs() == pos.their_king()) {
+    if (type == WDL && (pos.ours() | pos.theirs()) == pos.kings()) {
       return 0;
     }
 
@@ -1599,7 +1599,7 @@ int SyzygyTablebase::probe_dtz(const Position& pos, ProbeState* result) {
   int min_DTZ = 0xFFFF;
   for (const Move& move : pos.GetBoard().GenerateLegalMoves()) {
     Position next_pos = Position(pos, move);
-    const bool zeroing = next_pos.GetNoCaptureNoPawnPly() == 0;
+    const bool zeroing = next_pos.GetRule50Ply() == 0;
     // For zeroing moves we want the dtz of the move _before_ doing it,
     // otherwise we will get the dtz of the next move sequence. Search the
     // position after the move to get the score sign (because even in a winning
@@ -1630,7 +1630,7 @@ bool SyzygyTablebase::root_probe(const Position& pos, bool has_repeated,
   ProbeState result;
   auto root_moves = pos.GetBoard().GenerateLegalMoves();
   // Obtain 50-move counter for the root position
-  const int cnt50 = pos.GetNoCaptureNoPawnPly();
+  const int cnt50 = pos.GetRule50Ply();
   // Check whether a position was repeated since the last zeroing move.
   const bool rep = has_repeated;
   int dtz;
@@ -1641,7 +1641,7 @@ bool SyzygyTablebase::root_probe(const Position& pos, bool has_repeated,
   for (auto& m : root_moves) {
     Position next_pos = Position(pos, m);
     // Calculate dtz for the current move counting from the root position
-    if (next_pos.GetNoCaptureNoPawnPly() == 0) {
+    if (next_pos.GetRule50Ply() == 0) {
       // In case of a zeroing move, dtz is one of -101/-1/0/1/101
       const WDLScore wdl = static_cast<WDLScore>(-probe_wdl(next_pos, &result));
       dtz = dtz_before_zeroing(wdl);

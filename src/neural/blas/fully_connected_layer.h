@@ -23,6 +23,7 @@
 
 namespace lczero {
 
+template <bool use_eigen>
 class FullyConnectedLayer {
  public:
   FullyConnectedLayer() = delete;
@@ -36,7 +37,6 @@ class FullyConnectedLayer {
   // Forward inference, no batched, from input_size to scalar
   static float Forward0D(const size_t input_size, const float* input,
                          const float* weights);
-
 };
 
 }  // namespace lczero
